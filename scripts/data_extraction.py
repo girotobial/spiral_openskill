@@ -1,5 +1,6 @@
 import csv
 import datetime
+import enum
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Generic, Iterator, Self, TypeVar
@@ -30,8 +31,41 @@ class Player:
         return cls(name=name, ranking=ranking)
 
 
+class Type(enum.StrEnum):
+    MENS = "Mens"
+    MIXED = "Mixed"
+    IMBALANCED_MIXED = "Imbalanced Mixed"
+    LADIES = "Ladies"
+    UNDEFINED = "Undefined"
+
+    @classmethod
+    def from_match_type(cls, type_: str) -> "Type":
+        match type_:
+            case "LMLM" | "MLML":
+                return cls.MIXED
+            case (
+                "LMMM"
+                | "MLMM"
+                | "MMLM"
+                | "MMML"
+                | "MLLL"
+                | "LMLL"
+                | "LLML"
+                | "LLLM"
+                | "MMLL"
+                | "LLMM"
+            ):
+                return cls.IMBALANCED_MIXED
+            case "MMMM":
+                return cls.MENS
+            case "LLLL":
+                return cls.LADIES
+        return cls.UNDEFINED
+
+
 @dataclass
 class Match:
+    type_: Type
     winners: SafeList[Player]
     losers: SafeList[Player]
     winner_score: int
@@ -41,6 +75,7 @@ class Match:
 @dataclass
 class MatchRow:
     date: datetime.date
+    type_: str
     winner_a: str
     winner_b: str | None
     winner_score: int
@@ -64,6 +99,7 @@ class MatchRow:
 
         return cls(
             date=date,
+            type_=str(value.type_),
             winner_a=value.winners[0].name,
             winner_b=winner_b_str,
             winner_score=value.winner_score,
@@ -78,6 +114,7 @@ def _extract_name(text: str) -> str:
 
 
 def _extract_match(row: Tag) -> Match:
+    type_ = Type.from_match_type(row.find_all("td")[0].text.strip())
     # Extract winners (names only, no rankings)
     winners = row.find_all("td")[1]
     assert isinstance(winners, Tag)
@@ -97,6 +134,7 @@ def _extract_match(row: Tag) -> Match:
     score_str: str = row.find_all("td")[2].text.strip()
     score = [int(s) for s in score_str.split("-")]
     return Match(
+        type_=type_,
         winners=winner_players,
         losers=loser_players,
         winner_score=score[0],
