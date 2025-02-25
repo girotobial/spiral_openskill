@@ -1,11 +1,35 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import networkx as nx
 import pandas as pd
 from openskill.models import PlackettLuce, PlackettLuceRating
 
 
-class Model:
+class PageRankModel:
+    def __init__(self):
+        self.graph = nx.DiGraph()
+
+    def update_rankings(self, data: pd.DataFrame):
+        for _, row in data.iterrows():
+            margin = row["margin"]
+            winner_a = row["winner_a"]
+            winner_b = row["winner_b"]
+            loser_a = row["loser_a"]
+            loser_b = row["loser_b"]
+            for winner in (winner_a, winner_b):
+                for loser in (loser_a, loser_b):
+                    self.graph.add_edge(loser, winner, weight=margin)
+
+    def get_rankings(self) -> pd.DataFrame:
+        scores = nx.pagerank(self.graph, weight="weight")
+
+        rankings = pd.DataFrame(list(scores.items()), columns=["Player", "PageRank"])
+        rankings = rankings.sort_values(by="PageRank", ascending=False)
+        return rankings
+
+
+class PLModel:
     def __init__(self):
         self.players: dict[str, PlackettLuceRating] = {}
         self.model = PlackettLuce()
@@ -52,6 +76,19 @@ class Model:
             self.set_rating(row["loser_a"], new_losers[0])
             self.set_rating(row["loser_b"], new_losers[1])
 
+    def get_rankings(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "Player": player,
+                    "Mu": rating.mu,
+                    "Sigma": rating.sigma,
+                    "Ordinal": rating.ordinal(),
+                }
+                for player, rating in self.players.items()
+            ]
+        )
+
 
 @dataclass
 class Team:
@@ -69,70 +106,34 @@ class Team:
 def main():
     data_path = Path(__file__).parent.parent / "data"
     data = pd.read_csv(data_path / "matches.csv")
-    data["score_diff"] = data["winner_score"] - data["loser_score"]
+    data["margin"] = data["winner_score"] - data["loser_score"]
     mixed = data[data["type_"] == "Mixed"]
     ladies = data[data["type_"] == "Ladies"]
     mens = data[data["type_"] == "Mens"]
     overall = data[data["type_"] != "Imbalanced Mixed"]
 
-    mixed_model = Model()
-    mens_model = Model()
-    ladies_model = Model()
-    overall_model = Model()
+    mixed_model = PLModel()
+    mens_model = PLModel()
+    ladies_model = PLModel()
+    overall_model = PLModel()
+    overall_pg = PageRankModel()
 
     mixed_model.update_rankings(mixed)
+    overall_pg.update_rankings(overall)
     mens_model.update_rankings(mens)
     ladies_model.update_rankings(ladies)
     overall_model.update_rankings(overall)
 
-    mixed_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in mixed_model.players.items()
-        ]
-    )
+    mixed_ratings_df = mixed_model.get_rankings()
+    overall_pg_df = overall_pg.get_rankings()
 
-    mens_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in mens_model.players.items()
-        ]
-    )
-    ladies_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in ladies_model.players.items()
-        ]
-    )
-    overall_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in overall_model.players.items()
-        ]
-    )
+    mens_ratings_df = mens_model.get_rankings()
+    ladies_ratings_df = ladies_model.get_rankings()
+    overall_ratings_df = overall_model.get_rankings()
 
     ladies_ratings_df.to_csv(data_path / "ladies_ratings.csv", index=False)
     mens_ratings_df.to_csv(data_path / "mens_ratings.csv", index=False)
+    overall_pg_df.to_csv(data_path / "overall_pg.csv", index=False)
     mixed_ratings_df.to_csv(data_path / "mixed_ratings.csv", index=False)
     overall_ratings_df.to_csv(data_path / "overall_ratings.csv", index=False)
 
