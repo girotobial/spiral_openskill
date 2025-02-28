@@ -9,3 +9,9 @@ dependencies = [
     "openskill>=6.0.2",
     "pandas>=2.2.3",
 ]
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "isort>=6.0.1",
+]
