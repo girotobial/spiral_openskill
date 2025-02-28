@@ -6,9 +6,10 @@ from openskill.models import PlackettLuce, PlackettLuceRating
 
 
 class Model:
-    def __init__(self):
+    def __init__(self, name: str | None = None):
         self.players: dict[str, PlackettLuceRating] = {}
         self.model = PlackettLuce()
+        self.name = name if name is not None else ""
 
     def get_rating(self, player: str) -> PlackettLuceRating:
         if player not in self.players:
@@ -61,6 +62,19 @@ class Model:
             for loser in new_losers:
                 self.set_rating(loser.name, loser)
 
+        def results(self) -> pd.DataFrame:
+            return pd.DataFrame(
+                [
+                    {
+                        "Player": player,
+                        "Mu": rating.mu,
+                        "Sigma": rating.sigma,
+                        "Ordinal": rating.ordinal(),
+                    }
+                    for player, rating in self.players.items()
+                ]
+            )
+
 
 @dataclass
 class Team:
@@ -85,66 +99,19 @@ def main():
     mens = data[data["type_"] == "Mens"]
     overall = data[data["type_"] != "Imbalanced Mixed"]
 
-    mixed_model = Model()
-    mens_model = Model()
-    ladies_model = Model()
-    overall_model = Model()
+    mixed_model = Model("mixed")
+    mens_model = Model("mens")
+    ladies_model = Model("ladies")
+    overall_model = Model("overall")
 
     mixed_model.update_rankings(mixed)
     mens_model.update_rankings(mens)
     ladies_model.update_rankings(ladies)
     overall_model.update_rankings(overall)
 
-    mixed_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in mixed_model.players.items()
-        ]
-    )
-
-    mens_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in mens_model.players.items()
-        ]
-    )
-    ladies_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in ladies_model.players.items()
-        ]
-    )
-    overall_ratings_df = pd.DataFrame(
-        [
-            {
-                "Player": player,
-                "Mu": rating.mu,
-                "Sigma": rating.sigma,
-                "Ordinal": rating.ordinal(),
-            }
-            for player, rating in overall_model.players.items()
-        ]
-    )
-
-    ladies_ratings_df.to_csv(data_path / "ladies_ratings.csv", index=False)
-    mens_ratings_df.to_csv(data_path / "mens_ratings.csv", index=False)
-    mixed_ratings_df.to_csv(data_path / "mixed_ratings.csv", index=False)
-    overall_ratings_df.to_csv(data_path / "overall_ratings.csv", index=False)
+    for model in (mixed_model, mens_model, ladies_model, overall_model):
+        df = model.results()
+        df.to_csv(data_path / f"{model.name}_ratings.csv", index=False)
 
 
 if __name__ == "__main__":
