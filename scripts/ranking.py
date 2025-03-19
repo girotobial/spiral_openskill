@@ -6,10 +6,19 @@ from openskill.models import PlackettLuce, PlackettLuceRating
 
 
 class Player:
-    def __init__(self, rating: PlackettLuceRating, wins: int = 0, game: int = 0):
+    def __init__(
+        self,
+        rating: PlackettLuceRating,
+        wins: int = 0,
+        game: int = 0,
+        avg_win_margin: float = 0,
+        avg_loss_margin: float = 0,
+    ):
         self.rating = rating
         self.wins = wins
         self.games = game
+        self.avg_win_margin = avg_win_margin
+        self.avg_loss_margin = avg_loss_margin
 
     @property
     def name(self) -> str:
@@ -55,13 +64,29 @@ class Model:
             ]
             losers = [self.get_player(row["loser_a"]), self.get_player(row["loser_b"])]
 
+            winner_score = float(row["winner_score"])
+            loser_score = float(row["loser_score"])
+            scores = [winner_score, loser_score]
+
+            margin = scores[0] - scores[1]
+
             for winner in winners:
                 winner.games = winner.games + 1
                 winner.wins = winner.wins + 1
+
+                old_wins = winner.wins - 1 if winner.wins > 0 else winner.wins
+                old_average = winner.avg_win_margin * old_wins
+
+                winner.avg_win_margin = (old_average + margin) / winner.wins
                 self.set_player(winner)
 
             for loser in losers:
                 loser.games = loser.games + 1
+                losses = loser.games - loser.wins
+                old_losses = losses - 1 if losses > 0 else losses
+                old_average_loss = loser.avg_loss_margin * old_losses
+
+                loser.avg_loss_margin = (old_average_loss + margin) / losses
                 self.set_player(loser)
 
             max_winner_mu = max(winner.rating.mu for winner in winners)
@@ -71,10 +96,6 @@ class Model:
 
             # Reduce rating boost for weaker players if skill gap is large
             penalty_factor = 1 / (1 + skill_gap_winners * 0.1)
-
-            winner_score = float(row["winner_score"])
-            loser_score = float(row["loser_score"])
-            scores = [winner_score, loser_score]
 
             # Update Ratings
             [new_winners, new_losers] = self.model.rate(
@@ -114,6 +135,8 @@ class Model:
                     "Wins": player.wins,
                     "Total Games": player.games,
                     "Win/Loss": player.win_rate(),
+                    "Average Win Margin": player.avg_win_margin,
+                    "Average Loss Margin": player.avg_loss_margin,
                 }
                 for name, player in self.players.items()
             ]
