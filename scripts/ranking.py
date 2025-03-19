@@ -5,30 +5,67 @@ import pandas as pd
 from openskill.models import PlackettLuce, PlackettLuceRating
 
 
+class Player:
+    def __init__(self, rating: PlackettLuceRating, wins: int = 0, game: int = 0):
+        self.rating = rating
+        self.wins = wins
+        self.games = game
+
+    @property
+    def name(self) -> str:
+        return self.rating.name
+
+    def win_rate(self) -> float:
+        return self.wins / self.games
+
+    def __eq__(self, other) -> bool:
+        return self.name == other.name
+
+
 class Model:
     def __init__(self, name: str | None = None):
-        self.players: dict[str, PlackettLuceRating] = {}
+        self.players: dict[str, Player] = {}
         self.model = PlackettLuce()
         self.name = name if name is not None else ""
 
-    def get_rating(self, player: str) -> PlackettLuceRating:
-        if player not in self.players:
-            self.players[player] = self.model.rating(name=player)
-        return self.players[player]
+    def get_rating(self, name: str) -> PlackettLuceRating:
+        if name not in self.players:
+            player = Player(self.model.rating(name=name))
+            self.players[name] = player
+        return self.players[name].rating
 
     def set_rating(self, name: str, rating: PlackettLuceRating):
-        self.players[name] = rating
+        player = self.players[name]
+        player.rating = rating
+
+    def get_player(self, name: str) -> Player:
+        if name not in self.players:
+            player = Player(self.model.rating(name=name))
+            self.players[name] = player
+        return self.players[name]
+
+    def set_player(self, player: Player):
+        self.players[player.name] = player
 
     def update_rankings(self, data: pd.DataFrame):
         for _, row in data.iterrows():
             winners = [
-                self.get_rating(row["winner_a"]),
-                self.get_rating(row["winner_b"]),
+                self.get_player(row["winner_a"]),
+                self.get_player(row["winner_b"]),
             ]
-            losers = [self.get_rating(row["loser_a"]), self.get_rating(row["loser_b"])]
+            losers = [self.get_player(row["loser_a"]), self.get_player(row["loser_b"])]
 
-            max_winner_mu = max(winner.mu for winner in winners)
-            min_winner_mu = min(winner.mu for winner in winners)
+            for winner in winners:
+                winner.games = winner.games + 1
+                winner.wins = winner.wins + 1
+                self.set_player(winner)
+
+            for loser in losers:
+                loser.games = loser.games + 1
+                self.set_player(loser)
+
+            max_winner_mu = max(winner.rating.mu for winner in winners)
+            min_winner_mu = min(winner.rating.mu for winner in winners)
 
             skill_gap_winners = max_winner_mu - min_winner_mu
 
@@ -41,45 +78,52 @@ class Model:
 
             # Update Ratings
             [new_winners, new_losers] = self.model.rate(
-                teams=[winners, losers], scores=scores
+                teams=[
+                    [winner.rating for winner in winners],
+                    [loser.rating for loser in losers],
+                ],
+                scores=scores,
             )
 
             # Apply penalty by blending new & old ratings for weaker winners
             for i, winner in enumerate(winners):
-                if winner.mu < max_winner_mu:
+                if winner.rating.mu < max_winner_mu:
                     self.set_rating(
                         winner.name,
                         PlackettLuceRating(
-                            mu=winner.mu
-                            + penalty_factor * (new_winners[i].mu - winner.mu),
-                            sigma=winner.sigma,
-                            name=winner.name,
+                            mu=winner.rating.mu
+                            + penalty_factor * (new_winners[i].mu - winner.rating.mu),
+                            sigma=winner.rating.sigma,
+                            name=winner.rating.name,
                         ),
                     )
                 else:
                     self.set_rating(winner.name, new_winners[i])
 
-            for loser in new_losers:
-                self.set_rating(loser.name, loser)
+            for new_loser in new_losers:
+                self.set_rating(new_loser.name, new_loser)
 
-        def results(self) -> pd.DataFrame:
-            return pd.DataFrame(
-                [
-                    {
-                        "Player": player,
-                        "Mu": rating.mu,
-                        "Sigma": rating.sigma,
-                        "Ordinal": rating.ordinal(),
-                    }
-                    for player, rating in self.players.items()
-                ]
-            )
+    def results(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "Player": name,
+                    "Mu": player.rating.mu,
+                    "Sigma": player.rating.sigma,
+                    "Ordinal": player.rating.ordinal(),
+                    "Wins": player.wins,
+                    "Total Games": player.games,
+                    "Win/Loss": player.win_rate(),
+                }
+                for name, player in self.players.items()
+            ]
+        )
 
 
 @dataclass
 class Team:
-    player_one: str
-    player_two: str
+    player_one: Player
+    player_two: Player
 
     def __eq__(self, other) -> bool:
         if self.player_one == other.player_one and self.player_two == other.player_two:
