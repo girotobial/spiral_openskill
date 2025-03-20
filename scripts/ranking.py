@@ -19,6 +19,9 @@ class Player:
         self.games = game
         self.avg_win_margin = avg_win_margin
         self.avg_loss_margin = avg_loss_margin
+        self.wins_with: dict[str, int] = {}
+        self.loses_with: dict[str, int] = {}
+        self.loses_against: dict[str, int] = {}
 
     @property
     def name(self) -> str:
@@ -29,6 +32,54 @@ class Player:
 
     def __eq__(self, other) -> bool:
         return self.name == other.name
+
+    def won_with(self, name: str):
+        player_total = self.wins_with.get(name)
+        if player_total is None:
+            player_total = 0
+        player_total = player_total + 1
+        self.wins_with[name] = player_total
+
+    def lost_with(self, name: str):
+        player_total = self.loses_with.get(name)
+        if player_total is None:
+            player_total = 0
+        player_total = player_total + 1
+        self.loses_with[name] = player_total
+
+    def wins_with_most(self) -> str:
+        best_player = ""
+        best_total = 0
+        for player, total in self.wins_with.items():
+            if total > best_total:
+                best_total = total
+                best_player = player
+        return best_player
+
+    def lost_with_most(self) -> str:
+        worst_player = ""
+        biggest_loss = 0
+        for player, total in self.loses_with.items():
+            if total > biggest_loss:
+                biggest_loss = total
+                worst_player = player
+        return worst_player
+
+    def lost_against(self, name: str):
+        player_total = self.loses_against.get(name)
+        if player_total is None:
+            player_total = 0
+        player_total = player_total + 1
+        self.loses_against[name] = player_total
+
+    def lost_against_most(self) -> str:
+        nemesis = ""
+        total_games = 0
+        for player, total in self.loses_against.items():
+            if total > total_games:
+                total_games = total
+                nemesis = player
+        return nemesis
 
 
 class Model:
@@ -64,6 +115,18 @@ class Model:
             ]
             losers = [self.get_player(row["loser_a"]), self.get_player(row["loser_b"])]
 
+            # Update win and loss tracking for each player
+            winners[0].won_with(winners[1].name)
+            winners[1].won_with(winners[0].name)
+
+            losers[0].lost_with(losers[1].name)
+            losers[1].lost_with(losers[0].name)
+
+            for winner in winners:
+                for loser in losers:
+                    winner.lost_against(loser.name)
+
+            # Get scores
             winner_score = float(row["winner_score"])
             loser_score = float(row["loser_score"])
             scores = [winner_score, loser_score]
@@ -137,10 +200,13 @@ class Model:
                     "Win/Loss": player.win_rate(),
                     "Average Win Margin": player.avg_win_margin,
                     "Average Loss Margin": player.avg_loss_margin,
+                    "Player won with most": player.wins_with_most(),
+                    "Player lost with most": player.lost_with_most(),
+                    "Players beaten by most": player.lost_against_most(),
                 }
                 for name, player in self.players.items()
             ]
-        )
+        ).sort_values(by=["Ordinal"], ascending=False)
 
 
 @dataclass
