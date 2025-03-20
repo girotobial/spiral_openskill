@@ -2,7 +2,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+import math
+from itertools import combinations
 from openskill.models import PlackettLuce, PlackettLuceRating
+
+
+MIN_MU = 10
+MAX_SIGMA = 8
 
 
 class Player:
@@ -32,6 +38,18 @@ class Player:
 
     def __eq__(self, other) -> bool:
         return self.name == other.name
+
+    def __repr__(self) -> str:
+        return f"Player(rating={self.rating}, wins={self.wins}, games={self.games})"
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __lt__(self, other) -> bool:
+        return self.name < other.name
 
     def won_with(self, name: str):
         player_total = self.wins_with.get(name)
@@ -82,6 +100,51 @@ class Player:
         return nemesis
 
 
+class Team:
+    player_one: Player
+    player_two: Player
+
+    def __init__(self, player_one: Player, player_two: Player):
+        self.player_one = player_one
+        self.player_two = player_two
+
+    def __eq__(self, other) -> bool:
+        if self.player_one == other.player_one and self.player_two == other.player_two:
+            return True
+        if self.player_one == other.player_two and self.player_two == other.player_one:
+            return True
+        return False
+
+    def __str__(self) -> str:
+        return f"[{self.player_one}, {self.player_two}]"
+
+    def __repr__(self) -> str:
+        return f"Team({self.player_one}, {self.player_two})"
+
+    @property
+    def players(self) -> tuple[Player, Player]:
+        return (self.player_one, self.player_two)
+
+
+@dataclass
+class Match:
+    team_one: Team
+    team_two: Team
+
+    def __str__(self) -> str:
+        return f"{self.team_one} v {self.team_two}"
+
+    def __hash__(self) -> int:
+        players = tuple(sorted((*self.team_one.players, *self.team_two.players)))
+        return hash(players)
+
+    def players(self) -> list[str]:
+        return [
+            *[player.name for player in self.team_one.players],
+            *[player.name for player in self.team_two.players],
+        ]
+
+
 class Model:
     def __init__(self, name: str | None = None):
         self.players: dict[str, Player] = {}
@@ -107,7 +170,117 @@ class Model:
     def set_player(self, player: Player):
         self.players[player.name] = player
 
-    def update_rankings(self, data: pd.DataFrame):
+    def update_rankings(
+        self, winners: list[Player], losers: list[Player], scores: tuple[float, float]
+    ):
+        def adjust_rating(
+            old: PlackettLuceRating,
+            new: PlackettLuceRating,
+            team_mate: PlackettLuceRating,
+        ) -> PlackettLuceRating:
+            """
+            Adjust rating so strong players gain less and weak players gain more uncertainty.
+            """
+            rating_diff = abs(old.mu - team_mate.mu)
+
+            # Reduce skill gain for strong players logarithmically (diminishing returns)
+            if old.mu > team_mate.mu + 20:  # Only apply if 20+ points stronger
+                scale_factor = 1 / (
+                    1 + math.log1p(rating_diff - 6)
+                )  # Logarithmic scaling
+                new_mu_adjusted = old.mu + (new.mu - old.mu) * scale_factor
+                new_mu_adjusted = max(new_mu_adjusted, MIN_MU)
+                new = PlackettLuceRating(
+                    name=old.name, mu=new_mu_adjusted, sigma=new.sigma
+                )
+
+            # Increase uncertainty for weak players proportionally
+            if old.mu < team_mate.mu - 20:  # Only apply if 20+ points weaker
+                scale_factor = 1 + (
+                    math.log1p(rating_diff - 6) / 10
+                )  # Up to 10% sigma increase
+                new_sigma_adjusted = new.sigma * scale_factor
+                new_sigma_adjusted = min(new_sigma_adjusted, MAX_SIGMA)
+                new = PlackettLuceRating(
+                    name=old.name, mu=new.mu, sigma=new_sigma_adjusted
+                )
+
+            return new
+
+        winner_ratings = [winner.rating for winner in winners]
+        losers_ratings = [loser.rating for loser in losers]
+
+        # Update Ratings
+        [new_winners, new_losers] = self.model.rate(
+            teams=[winner_ratings, losers_ratings],
+            scores=list(scores),
+        )
+
+        new_winners = [
+            adjust_rating(old, new, winner_ratings[1 - i])
+            for i, (old, new) in enumerate(zip(winner_ratings, new_winners))
+        ]
+        # new_losers = [
+        #    adjust_rating(old, new, losers_ratings[1 - i])
+        #    for i, (old, new) in enumerate(zip(losers_ratings, new_losers))
+        # ]
+
+        players = [*new_winners, *new_losers]
+
+        if "Alex Robinson" in (player.name for player in players):
+            print(
+                self.name,
+                [
+                    f"{winner.name} ({winner.rating.mu: .2f}, {winner.rating.sigma: .2f})"
+                    for winner in winners
+                ],
+                [
+                    f"{loser.name} ({loser.rating.mu:.2f}, {loser.rating.sigma:.2f})"
+                    for loser in losers
+                ],
+                scores,
+            )
+
+        for player in players:
+            if player.name is None:
+                print(winners, losers, scores)
+            self.set_rating(player.name, player)
+
+    def update_stats(
+        self, winners: list[Player], losers: list[Player], scores: tuple[float, float]
+    ):
+        # Update win and loss tracking for each player
+        winners[0].won_with(winners[1].name)
+        winners[1].won_with(winners[0].name)
+
+        losers[0].lost_with(losers[1].name)
+        losers[1].lost_with(losers[0].name)
+
+        for winner in winners:
+            for loser in losers:
+                loser.lost_against(winner.name)
+
+        margin = scores[0] - scores[1]
+        for winner in winners:
+            winner.games = winner.games + 1
+            winner.wins = winner.wins + 1
+
+            old_wins = winner.wins - 1 if winner.wins > 0 else winner.wins
+            old_average = winner.avg_win_margin * old_wins
+
+            winner.avg_win_margin = (old_average + margin) / winner.wins
+            self.set_player(winner)
+
+        for loser in losers:
+            loser.games = loser.games + 1
+            losses = loser.games - loser.wins
+            old_losses = losses - 1 if losses > 0 else losses
+            old_average_loss = loser.avg_loss_margin * old_losses
+
+            loser.avg_loss_margin = (old_average_loss + margin) / losses
+            self.set_player(loser)
+
+    def update(self, data: pd.DataFrame):
         for _, row in data.iterrows():
             winners = [
                 self.get_player(row["winner_a"]),
@@ -115,77 +288,13 @@ class Model:
             ]
             losers = [self.get_player(row["loser_a"]), self.get_player(row["loser_b"])]
 
-            # Update win and loss tracking for each player
-            winners[0].won_with(winners[1].name)
-            winners[1].won_with(winners[0].name)
-
-            losers[0].lost_with(losers[1].name)
-            losers[1].lost_with(losers[0].name)
-
-            for winner in winners:
-                for loser in losers:
-                    winner.lost_against(loser.name)
-
             # Get scores
             winner_score = float(row["winner_score"])
             loser_score = float(row["loser_score"])
-            scores = [winner_score, loser_score]
+            scores = (winner_score, loser_score)
 
-            margin = scores[0] - scores[1]
-
-            for winner in winners:
-                winner.games = winner.games + 1
-                winner.wins = winner.wins + 1
-
-                old_wins = winner.wins - 1 if winner.wins > 0 else winner.wins
-                old_average = winner.avg_win_margin * old_wins
-
-                winner.avg_win_margin = (old_average + margin) / winner.wins
-                self.set_player(winner)
-
-            for loser in losers:
-                loser.games = loser.games + 1
-                losses = loser.games - loser.wins
-                old_losses = losses - 1 if losses > 0 else losses
-                old_average_loss = loser.avg_loss_margin * old_losses
-
-                loser.avg_loss_margin = (old_average_loss + margin) / losses
-                self.set_player(loser)
-
-            max_winner_mu = max(winner.rating.mu for winner in winners)
-            min_winner_mu = min(winner.rating.mu for winner in winners)
-
-            skill_gap_winners = max_winner_mu - min_winner_mu
-
-            # Reduce rating boost for weaker players if skill gap is large
-            penalty_factor = 1 / (1 + skill_gap_winners * 0.1)
-
-            # Update Ratings
-            [new_winners, new_losers] = self.model.rate(
-                teams=[
-                    [winner.rating for winner in winners],
-                    [loser.rating for loser in losers],
-                ],
-                scores=scores,
-            )
-
-            # Apply penalty by blending new & old ratings for weaker winners
-            for i, winner in enumerate(winners):
-                if winner.rating.mu < max_winner_mu:
-                    self.set_rating(
-                        winner.name,
-                        PlackettLuceRating(
-                            mu=winner.rating.mu
-                            + penalty_factor * (new_winners[i].mu - winner.rating.mu),
-                            sigma=winner.rating.sigma,
-                            name=winner.rating.name,
-                        ),
-                    )
-                else:
-                    self.set_rating(winner.name, new_winners[i])
-
-            for new_loser in new_losers:
-                self.set_rating(new_loser.name, new_loser)
+            self.update_stats(winners, losers, scores)
+            self.update_rankings(winners, losers, scores)
 
     def results(self) -> pd.DataFrame:
         return pd.DataFrame(
@@ -208,18 +317,50 @@ class Model:
             ]
         ).sort_values(by=["Ordinal"], ascending=False)
 
+    def predict_draw(self, match: Match) -> float:
+        teams = [
+            [player.rating for player in match.team_one.players],
+            [player.rating for player in match.team_two.players],
+        ]
+        return self.model.predict_draw(teams=teams)
 
-@dataclass
-class Team:
-    player_one: Player
-    player_two: Player
+    def predict_draws(self) -> dict[Match, float]:
+        players = self.players.items()
 
-    def __eq__(self, other) -> bool:
-        if self.player_one == other.player_one and self.player_two == other.player_two:
-            return True
-        if self.player_one == other.player_two and self.player_two == other.player_one:
-            return True
-        return False
+        unique_matches = set()
+
+        for group in combinations(players, 4):
+            for team1 in combinations(group, 2):
+                team2 = tuple(sorted(set(group) - set(team1)))
+                match_ = Match(
+                    Team(team1[0][1], team1[1][1]), Team(team2[0][1], team2[1][1])
+                )
+                unique_matches.add(match_)
+
+        results: dict[Match, float] = {}
+
+        for match in unique_matches:
+            results[match] = self.predict_draw(match)
+
+        return results
+
+    def predict_draws_df(self) -> pd.DataFrame:
+        draws = self.predict_draws()
+        return pd.DataFrame(
+            [
+                {
+                    "Players": ", ".join(match.players()),
+                    "Team One": ", ".join(
+                        player.name for player in match.team_one.players
+                    ),
+                    "Team Two": ", ".join(
+                        player.name for player in match.team_two.players
+                    ),
+                    "Draw Probability": score,
+                }
+                for match, score in draws.items()
+            ]
+        )
 
 
 def main():
@@ -237,10 +378,12 @@ def main():
     ladies_model = Model("ladies")
     overall_model = Model("overall")
 
-    mixed_model.update_rankings(mixed)
-    mens_model.update_rankings(mens)
-    ladies_model.update_rankings(ladies)
-    overall_model.update_rankings(overall)
+    mixed_model.update(mixed)
+    mens_model.update(mens)
+    ladies_model.update(ladies)
+    overall_model.update(overall)
+
+    overall_model.predict_draws_df().to_csv(data_path / "draws.csv", index=False)
 
     for model in (mixed_model, mens_model, ladies_model, overall_model):
         df = model.results()
