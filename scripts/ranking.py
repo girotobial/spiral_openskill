@@ -7,6 +7,7 @@ from openskill.models import (
     ThurstoneMostellerFull,
     ThurstoneMostellerFullRating,
 )
+from tqdm import tqdm
 
 
 MIN_MU = 10
@@ -224,7 +225,7 @@ class Model:
             self.set_player(loser)
 
     def update(self, data: pd.DataFrame):
-        for _, row in data.iterrows():
+        for _, row in tqdm(data.iterrows()):
             winners = [
                 self.get_player(row["winner_a"]),
                 self.get_player(row["winner_b"]),
@@ -273,7 +274,7 @@ class Model:
         unique_matches = set()
         unique_groups = set()
 
-        for group in combinations(players, 4):
+        for group in tqdm(combinations(players, 4)):
             group = tuple(sorted(group))
             if group in unique_groups:
                 continue
@@ -303,7 +304,7 @@ class Model:
                     "Player 4:": match.team_two.players[1],
                     "Draw Probability": score,
                 }
-                for match, score in draws.items()
+                for match, score in tqdm(draws.items())
             ]
         ).sort_values(by="Draw Probability", ascending=False)
 
