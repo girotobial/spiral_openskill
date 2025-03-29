@@ -219,15 +219,6 @@ class Model:
             scores=list(scores),
         )
 
-        #        new_winners = [
-        #            adjust_rating(old, new, winner_ratings[1 - i])
-        #            for i, (old, new) in enumerate(zip(winner_ratings, new_winners))
-        #        ]
-        # new_losers = [
-        #    adjust_rating(old, new, losers_ratings[1 - i])
-        #    for i, (old, new) in enumerate(zip(losers_ratings, new_losers))
-        # ]
-
         players = [*new_winners, *new_losers]
 
         for player in players:
