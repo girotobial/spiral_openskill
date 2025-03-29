@@ -4,7 +4,12 @@ from pathlib import Path
 import pandas as pd
 import math
 from itertools import combinations
-from openskill.models import PlackettLuce, PlackettLuceRating
+from openskill.models import (
+    PlackettLuce,
+    PlackettLuceRating,
+    ThurstoneMostellerFull,
+    ThurstoneMostellerFullRating,
+)
 
 
 MIN_MU = 10
@@ -14,7 +19,7 @@ MAX_SIGMA = 8
 class Player:
     def __init__(
         self,
-        rating: PlackettLuceRating,
+        rating: ThurstoneMostellerFullRating,
         wins: int = 0,
         game: int = 0,
         avg_win_margin: float = 0,
@@ -148,16 +153,16 @@ class Match:
 class Model:
     def __init__(self, name: str | None = None):
         self.players: dict[str, Player] = {}
-        self.model = PlackettLuce()
+        self.model = ThurstoneMostellerFull()
         self.name = name if name is not None else ""
 
-    def get_rating(self, name: str) -> PlackettLuceRating:
+    def get_rating(self, name: str) -> ThurstoneMostellerFullRating:
         if name not in self.players:
             player = Player(self.model.rating(name=name))
             self.players[name] = player
         return self.players[name].rating
 
-    def set_rating(self, name: str, rating: PlackettLuceRating):
+    def set_rating(self, name: str, rating: ThurstoneMostellerFullRating):
         player = self.players[name]
         player.rating = rating
 
@@ -174,10 +179,10 @@ class Model:
         self, winners: list[Player], losers: list[Player], scores: tuple[float, float]
     ):
         def adjust_rating(
-            old: PlackettLuceRating,
-            new: PlackettLuceRating,
-            team_mate: PlackettLuceRating,
-        ) -> PlackettLuceRating:
+            old: ThurstoneMostellerFullRating,
+            new: ThurstoneMostellerFullRating,
+            team_mate: ThurstoneMostellerFullRating,
+        ) -> ThurstoneMostellerFullRating:
             """
             Adjust rating so strong players gain less and weak players gain more uncertainty.
             """
@@ -190,7 +195,7 @@ class Model:
                 )  # Logarithmic scaling
                 new_mu_adjusted = old.mu + (new.mu - old.mu) * scale_factor
                 new_mu_adjusted = max(new_mu_adjusted, MIN_MU)
-                new = PlackettLuceRating(
+                new = ThurstoneMostellerFullRating(
                     name=old.name, mu=new_mu_adjusted, sigma=new.sigma
                 )
 
@@ -201,7 +206,7 @@ class Model:
                 )  # Up to 10% sigma increase
                 new_sigma_adjusted = new.sigma * scale_factor
                 new_sigma_adjusted = min(new_sigma_adjusted, MAX_SIGMA)
-                new = PlackettLuceRating(
+                new = ThurstoneMostellerFullRating(
                     name=old.name, mu=new.mu, sigma=new_sigma_adjusted
                 )
 
@@ -216,10 +221,10 @@ class Model:
             scores=list(scores),
         )
 
-        new_winners = [
-            adjust_rating(old, new, winner_ratings[1 - i])
-            for i, (old, new) in enumerate(zip(winner_ratings, new_winners))
-        ]
+        #        new_winners = [
+        #            adjust_rating(old, new, winner_ratings[1 - i])
+        #            for i, (old, new) in enumerate(zip(winner_ratings, new_winners))
+        #        ]
         # new_losers = [
         #    adjust_rating(old, new, losers_ratings[1 - i])
         #    for i, (old, new) in enumerate(zip(losers_ratings, new_losers))
@@ -328,8 +333,13 @@ class Model:
         players = self.players.items()
 
         unique_matches = set()
+        unique_groups = set()
 
         for group in combinations(players, 4):
+            group = tuple(sorted(group))
+            if group in unique_groups:
+                continue
+            unique_groups.add(group)
             for team1 in combinations(group, 2):
                 team2 = tuple(sorted(set(group) - set(team1)))
                 match_ = Match(
@@ -349,18 +359,15 @@ class Model:
         return pd.DataFrame(
             [
                 {
-                    "Players": ", ".join(match.players()),
-                    "Team One": ", ".join(
-                        player.name for player in match.team_one.players
-                    ),
-                    "Team Two": ", ".join(
-                        player.name for player in match.team_two.players
-                    ),
+                    "Player 1": match.team_one.players[0],
+                    "Player 2:": match.team_one.players[1],
+                    "Player 3:": match.team_two.players[0],
+                    "Player 4:": match.team_two.players[1],
                     "Draw Probability": score,
                 }
                 for match, score in draws.items()
             ]
-        )
+        ).sort_values(by="Draw Probability", ascending=False)
 
 
 def main():
@@ -383,7 +390,11 @@ def main():
     ladies_model.update(ladies)
     overall_model.update(overall)
 
-    overall_model.predict_draws_df().to_csv(data_path / "draws.csv", index=False)
+    mens_model.predict_draws_df().to_csv(
+        data_path / "mens_draws_predictions.csv", index=False
+    )
+
+    # mens_model.predict_draws_df().to_csv(data_path / "mens_draws.csv", index=False)
 
     for model in (mixed_model, mens_model, ladies_model, overall_model):
         df = model.results()
