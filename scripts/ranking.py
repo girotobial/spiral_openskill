@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
-import math
 from itertools import combinations
 from openskill.models import (
     ThurstoneMostellerFull,
@@ -176,40 +175,6 @@ class Model:
     def update_rankings(
         self, winners: list[Player], losers: list[Player], scores: tuple[float, float]
     ):
-        def adjust_rating(
-            old: ThurstoneMostellerFullRating,
-            new: ThurstoneMostellerFullRating,
-            team_mate: ThurstoneMostellerFullRating,
-        ) -> ThurstoneMostellerFullRating:
-            """
-            Adjust rating so strong players gain less and weak players gain more uncertainty.
-            """
-            rating_diff = abs(old.mu - team_mate.mu)
-
-            # Reduce skill gain for strong players logarithmically (diminishing returns)
-            if old.mu > team_mate.mu + 20:  # Only apply if 20+ points stronger
-                scale_factor = 1 / (
-                    1 + math.log1p(rating_diff - 6)
-                )  # Logarithmic scaling
-                new_mu_adjusted = old.mu + (new.mu - old.mu) * scale_factor
-                new_mu_adjusted = max(new_mu_adjusted, MIN_MU)
-                new = ThurstoneMostellerFullRating(
-                    name=old.name, mu=new_mu_adjusted, sigma=new.sigma
-                )
-
-            # Increase uncertainty for weak players proportionally
-            if old.mu < team_mate.mu - 20:  # Only apply if 20+ points weaker
-                scale_factor = 1 + (
-                    math.log1p(rating_diff - 6) / 10
-                )  # Up to 10% sigma increase
-                new_sigma_adjusted = new.sigma * scale_factor
-                new_sigma_adjusted = min(new_sigma_adjusted, MAX_SIGMA)
-                new = ThurstoneMostellerFullRating(
-                    name=old.name, mu=new.mu, sigma=new_sigma_adjusted
-                )
-
-            return new
-
         winner_ratings = [winner.rating for winner in winners]
         losers_ratings = [loser.rating for loser in losers]
 
@@ -222,8 +187,6 @@ class Model:
         players = [*new_winners, *new_losers]
 
         for player in players:
-            if player.name is None:
-                print(winners, losers, scores)
             self.set_rating(player.name, player)
 
     def update_stats(
