@@ -110,7 +110,8 @@ class MatchRow:
 
 
 def _extract_name(text: str) -> str:
-    return " ".join(s for s in text.strip().split(" ")[0:2]).strip()
+    print(text)
+    return " ".join(s for s in text.strip().split(" ")).strip()
 
 
 def _extract_match(row: Tag) -> Match:
