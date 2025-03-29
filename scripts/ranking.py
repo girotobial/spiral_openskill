@@ -5,8 +5,6 @@ import pandas as pd
 import math
 from itertools import combinations
 from openskill.models import (
-    PlackettLuce,
-    PlackettLuceRating,
     ThurstoneMostellerFull,
     ThurstoneMostellerFullRating,
 )
@@ -231,20 +229,6 @@ class Model:
         # ]
 
         players = [*new_winners, *new_losers]
-
-        if "Alex Robinson" in (player.name for player in players):
-            print(
-                self.name,
-                [
-                    f"{winner.name} ({winner.rating.mu: .2f}, {winner.rating.sigma: .2f})"
-                    for winner in winners
-                ],
-                [
-                    f"{loser.name} ({loser.rating.mu:.2f}, {loser.rating.sigma:.2f})"
-                    for loser in losers
-                ],
-                scores,
-            )
 
         for player in players:
             if player.name is None:
