@@ -200,12 +200,11 @@ class Model:
         losers[0].lost_with(losers[1].name)
         losers[1].lost_with(losers[0].name)
 
+        margin = scores[0] - scores[1]
         for winner in winners:
             for loser in losers:
                 loser.lost_against(winner.name)
 
-        margin = scores[0] - scores[1]
-        for winner in winners:
             winner.games = winner.games + 1
             winner.wins = winner.wins + 1
 
@@ -225,7 +224,7 @@ class Model:
             self.set_player(loser)
 
     def update(self, data: pd.DataFrame):
-        for _, row in tqdm(data.iterrows()):
+        for _, row in tqdm(data.iterrows(), desc=f"{self.name} ranking update"):
             winners = [
                 self.get_player(row["winner_a"]),
                 self.get_player(row["winner_b"]),
@@ -274,7 +273,9 @@ class Model:
         unique_matches = set()
         unique_groups = set()
 
-        for group in tqdm(combinations(players, 4)):
+        for group in tqdm(
+            combinations(players, 4), desc=f"{self.name} draw predictions"
+        ):
             group = tuple(sorted(group))
             if group in unique_groups:
                 continue
@@ -329,8 +330,8 @@ def main():
     ladies_model.update(ladies)
     overall_model.update(overall)
 
-    mens_model.predict_draws_df().to_csv(
-        data_path / "mens_draws_predictions.csv", index=False
+    overall_model.predict_draws_df().to_csv(
+        data_path / "overall_draw_predictions.csv", index=False
     )
 
     # mens_model.predict_draws_df().to_csv(data_path / "mens_draws.csv", index=False)
