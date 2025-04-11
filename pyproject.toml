@@ -9,5 +9,8 @@ dependencies = [
     "networkx>=3.4.2",
     "openskill>=6.0.2",
     "pandas>=2.2.3",
-    "scipy>=1.15.2",
+    "tqdm>=4.67.1",
 ]
+
+[dependency-groups]
+dev = ["black>=25.1.0", "isort>=6.0.1", "mypy>=1.15.0"]
