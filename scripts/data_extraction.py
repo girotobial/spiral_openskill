@@ -70,6 +70,7 @@ class Match:
     losers: SafeList[Player]
     winner_score: int
     loser_score: int
+    duration: datetime.timedelta
 
 
 @dataclass
@@ -82,6 +83,7 @@ class MatchRow:
     loser_a: str
     loser_b: str | None
     loser_score: int
+    duration: datetime.timedelta
 
     @classmethod
     def from_match(cls, value: Match, date: datetime.date) -> Self:
@@ -106,6 +108,7 @@ class MatchRow:
             loser_a=value.losers[0].name,
             loser_b=loser_b_str,
             loser_score=value.loser_score,
+            duration=value.duration,
         )
 
 
@@ -115,9 +118,10 @@ def _extract_name(text: str) -> str:
 
 
 def _extract_match(row: Tag) -> Match:
-    type_ = Type.from_match_type(row.find_all("td")[0].text.strip())
+    tds = row.find_all("td")
+    type_ = Type.from_match_type(tds[0].text.strip())
     # Extract winners (names only, no rankings)
-    winners = row.find_all("td")[1]
+    winners = tds[1]
     assert isinstance(winners, Tag)
     winner_players = SafeList(
         Player.from_span(span)  # type: ignore
@@ -125,21 +129,29 @@ def _extract_match(row: Tag) -> Match:
     )
 
     # Extract losers (names only, no rankings)
-    losers = row.find_all("td")[3]
+    losers = tds[3]
     assert isinstance(losers, Tag)
     loser_players = SafeList(
         Player.from_span(span)  # type: ignore
         for span in losers.find_all("span", recursive=False)
     )
 
-    score_str: str = row.find_all("td")[2].text.strip()
+    score_str: str = tds[2].text.strip()
     score = [int(s) for s in score_str.split("-")]
+
+    duration_str = tds[6].text.strip()
+    (hours, minutes, seconds) = duration_str.split(":")
+    duration = datetime.timedelta(
+        hours=int(hours), minutes=int(minutes), seconds=int(seconds)
+    )
+
     return Match(
         type_=type_,
         winners=winner_players,
         losers=loser_players,
         winner_score=score[0],
         loser_score=score[1],
+        duration=duration,
     )
 
 
