@@ -4,7 +4,8 @@ config:
   theme: default
 ---
 erDiagram
-    PLAYER ||--o{ TEAM: in
+    PLAYER ||--o{ TEAM_MEMBER: "member of"
+    TEAM_MEMBER }|--|| TEAM: in
     PLAYER ||--|{ RATING: has
     TEAM }|--o| MATCH: plays
     MATCH }|--|| SESSION: in
@@ -13,6 +14,11 @@ erDiagram
         int id PK
         string name
         enum gender
+    }
+    TEAM_MEMBER {
+        int id PK
+        int player_id FK
+        int team_id FK
     }
     RATING {
         int id PK
