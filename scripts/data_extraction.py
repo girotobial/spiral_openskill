@@ -84,9 +84,10 @@ class MatchRow:
     loser_b: str | None
     loser_score: int
     duration: datetime.timedelta
+    session_index: int
 
     @classmethod
-    def from_match(cls, value: Match, date: datetime.date) -> Self:
+    def from_match(cls, value: Match, date: datetime.date, session_idx: int) -> Self:
         winner_b = value.winners.get(1)
         if winner_b is not None:
             winner_b_str = winner_b.name
@@ -109,6 +110,7 @@ class MatchRow:
             loser_b=loser_b_str,
             loser_score=value.loser_score,
             duration=value.duration,
+            session_index=session_idx,
         )
 
 
@@ -164,10 +166,10 @@ def process_html_page(page: Path) -> Iterator[MatchRow]:
     date_str = page.stem.split(" ")[0]
     date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
 
-    for match_ in matches:
+    for i, match_ in enumerate(reversed(matches)):
         assert isinstance(match_, Tag)
         m = _extract_match(match_)
-        yield MatchRow.from_match(m, date)
+        yield MatchRow.from_match(m, date, i)
 
 
 def main():
