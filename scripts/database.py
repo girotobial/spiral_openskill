@@ -1,13 +1,6 @@
-from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    Date,
-    ForeignKey,
-    sessionmaker,
-)
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import Session as DatabaseSession
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -26,6 +19,7 @@ class Team(Base):
 
     id = Column(Integer, primary_key=True)
     match_id = Column(Integer, ForeignKey("match.id"))
+    winner = Column(Boolean)
     members = relationship(
         "TeamMember", back_populates="team", cascade="all, delete-orphan"
     )
@@ -58,7 +52,7 @@ class Match(Base):
 
 
 class Session(Base):
-    __tablename__ = "match"
+    __tablename__ = "session"
 
     id = Column(Integer, primary_key=True)
     date = Column(Date, nullable=False)
@@ -69,6 +63,4 @@ class Session(Base):
 class Database:
     def __init__(self, path: str):
         engine = create_engine(f"sqlite:///{path}")
-        Session = sessionmaker()
-        Session.configure(bind=engine)
-        self.session = Session()
+        self.session = DatabaseSession(engine)
