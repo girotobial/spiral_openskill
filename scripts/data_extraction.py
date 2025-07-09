@@ -1,122 +1,20 @@
 import csv
 import datetime
-import enum
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, fields
 from pathlib import Path
-from typing import Generic, Iterator, Self, TypeVar
+from typing import Iterator
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from database import (
+    Database,
+    Session,
+    Match as DbMatch,
+    Team,
+    Result,
+)
 
-T = TypeVar("T")
-
-
-class SafeList(list, Generic[T]):
-    def get(self, index: int) -> T | None:
-        try:
-            return self[index]
-        except IndexError:
-            return None
-
-
-@dataclass
-class Player:
-    name: str
-    ranking: float
-
-    @classmethod
-    def from_span(cls, span: Tag) -> Self:
-        name = _extract_name(span.contents[0].text)
-        ranking = float(span.contents[1].text)
-        return cls(name=name, ranking=ranking)
-
-
-class Type(enum.StrEnum):
-    MENS = "Mens"
-    MIXED = "Mixed"
-    IMBALANCED_MIXED = "Imbalanced Mixed"
-    LADIES = "Ladies"
-    UNDEFINED = "Undefined"
-
-    @classmethod
-    def from_match_type(cls, type_: str) -> "Type":
-        match type_:
-            case "LMLM" | "MLML":
-                return cls.MIXED
-            case (
-                "LMMM"
-                | "MLMM"
-                | "MMLM"
-                | "MMML"
-                | "MLLL"
-                | "LMLL"
-                | "LLML"
-                | "LLLM"
-                | "MMLL"
-                | "LLMM"
-            ):
-                return cls.IMBALANCED_MIXED
-            case "MMMM":
-                return cls.MENS
-            case "LLLL":
-                return cls.LADIES
-        return cls.UNDEFINED
-
-
-@dataclass
-class Match:
-    type_: Type
-    winners: SafeList[Player]
-    losers: SafeList[Player]
-    winner_score: int
-    loser_score: int
-    duration: datetime.timedelta
-
-
-@dataclass
-class MatchRow:
-    date: datetime.date
-    type_: str
-    winner_a: str
-    winner_b: str | None
-    winner_score: int
-    loser_a: str
-    loser_b: str | None
-    loser_score: int
-    duration: datetime.timedelta
-    session_index: int
-
-    @classmethod
-    def from_match(cls, value: Match, date: datetime.date, session_idx: int) -> Self:
-        winner_b = value.winners.get(1)
-        if winner_b is not None:
-            winner_b_str = winner_b.name
-        else:
-            winner_b_str = None
-
-        loser_b = value.losers.get(1)
-        if loser_b is not None:
-            loser_b_str = loser_b.name
-        else:
-            loser_b_str = None
-
-        return cls(
-            date=date,
-            type_=str(value.type_),
-            winner_a=value.winners[0].name,
-            winner_b=winner_b_str,
-            winner_score=value.winner_score,
-            loser_a=value.losers[0].name,
-            loser_b=loser_b_str,
-            loser_score=value.loser_score,
-            duration=value.duration,
-            session_index=session_idx,
-        )
-
-
-def _extract_name(text: str) -> str:
-    print(text)
-    return " ".join(s for s in text.strip().split(" ")).strip()
+from common import Match, MatchRow, Player, SafeList, Type
 
 
 def _extract_match(row: Tag) -> Match:
@@ -177,13 +75,50 @@ def main():
     data = root / "data"
     pages_dir = root / "ebadders_pages"
 
+    database = Database("./data.db")
+
     rows = []
     field_names = None
-    for page in pages_dir.glob("*.html"):
-        for row in process_html_page(page):
-            if field_names is None:
-                field_names = [field.name for field in fields(row)]
-            rows.append(asdict(row))
+    with database:
+        club = database.clubs.get_or_create("Spiral")
+        for page in pages_dir.glob("*.html"):
+            game_session = None
+            for row in process_html_page(page):
+                if row.session_index == 0:
+                    game_session = Session(date=row.date)
+                    club.sessions.append(game_session)
+
+                match = DbMatch(
+                    session_index=row.session_index,
+                    winner_score=row.winner_score,
+                    loser_score=row.loser_score,
+                    margin=row.winner_score - row.loser_score,
+                    duration=row.duration.total_seconds(),
+                )
+                game_session.matches.append(match)
+
+                winning_players = [
+                    database.players.get_or_create(name)
+                    for name in (row.winner_a, row.winner_b)
+                ]
+                winning_team = database.teams.get_or_create(winning_players)
+                print(winning_team.id)
+
+                win_result = Result(team=winning_team, winner=True, match=match)
+                database.session.add(win_result)
+
+                losing_players = [
+                    database.players.get_or_create(name)
+                    for name in (row.loser_a, row.loser_b)
+                ]
+                losing_team = database.teams.get_or_create(losing_players)
+                lose_result = Result(team=losing_team, winner=False, match=match)
+                database.session.add(lose_result)
+
+                if field_names is None:
+                    field_names = [field.name for field in fields(row)]
+                rows.append(asdict(row))
+            database.commit()
 
     with open(data / "matches.csv", "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)

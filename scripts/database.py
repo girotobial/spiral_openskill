@@ -1,66 +1,216 @@
-from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, create_engine
-from sqlalchemy.orm import Session as DatabaseSession
+from __future__ import annotations
+
+import datetime
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+    insert,
+    select,
+    Table,
+    func,
+    case,
+)
+from sqlalchemy.orm import (
+    sessionmaker,
+    Session as DatabaseSession,
+    Mapped,
+    mapped_column,
+)
 from sqlalchemy.orm import declarative_base, relationship
+from typing import Any
+
+from common import MatchRow
+
 
 Base = declarative_base()
 
+team_member = Table(
+    "team_member",
+    Base.metadata,
+    Column("player_id", ForeignKey("player.id"), primary_key=True),
+    Column("team_id", ForeignKey("team.id"), primary_key=True),
+)
 
-class Player(Base):
+
+class AsDictMixin:
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }
+
+
+class Player(Base, AsDictMixin):
     __tablename__ = "player"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    teams = relationship("TeamMember", back_populates="player")
+    teams: Mapped[list[Team]] = relationship(
+        secondary=team_member,
+        back_populates="members",
+    )
 
 
-class Team(Base):
+class Result(Base):
+    __tablename__ = "result"
+
+    team_id = Column(ForeignKey("team.id"), primary_key=True)
+    match_id = Column(ForeignKey("match.id"), primary_key=True)
+    winner: Mapped[bool] = mapped_column(Boolean)
+    match: Mapped[Match] = relationship("Match", back_populates="teams")
+    team: Mapped[Team] = relationship("Team", back_populates="matches")
+
+
+class Team(Base, AsDictMixin):
     __tablename__ = "team"
 
-    id = Column(Integer, primary_key=True)
-    match_id = Column(Integer, ForeignKey("match.id"))
-    winner = Column(Boolean)
-    members = relationship(
-        "TeamMember", back_populates="team", cascade="all, delete-orphan"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    members: Mapped[list[Player]] = relationship(
+        secondary=team_member,
+        back_populates="teams",
     )
-    match = relationship("Match", back_populates="teams")
-
-
-class TeamMember(Base):
-    __tablename__ = "team_member"
-
-    player_id = Column(Integer, ForeignKey("player.id"), primary_key=True)
-    team_id = Column(Integer, ForeignKey("team.id"), primary_key=True)
-
-    team = relationship("Team", back_populates="member")
-    player = relationship("Player", back_populates="teams")
+    matches: Mapped[list[Result]] = relationship(Result, back_populates="team")
 
 
 class Match(Base):
     __tablename__ = "match"
 
-    id = Column(Integer, primary_key=True)
-    session_id = Column(Integer, ForeignKey("session.id"))
-    session_index = Column(Integer, nullable=False)
-    winner_score = Column(Integer, nullable=False)
-    loser_score = Column(Integer, nullable=False)
-    margin = Column(Integer, nullable=False)
-    duration = Column(Integer, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("session.id"))
+    session_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    winner_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    loser_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    margin: Mapped[int] = mapped_column(Integer, nullable=False)
+    duration: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    session = relationship("Session", back_populates="matches")
-    teams = relationship("Team", back_populates="match")
+    session: Mapped[Session] = relationship("Session", back_populates="matches")
+    teams: Mapped[list[Result]] = relationship(Result, back_populates="match")
 
 
 class Session(Base):
     __tablename__ = "session"
 
-    id = Column(Integer, primary_key=True)
-    date = Column(Date, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    club_id: Mapped[int] = mapped_column(ForeignKey("club.id"))
 
-    matches = relationship("Match", back_populates="session")
+    matches: Mapped[list[Match]] = relationship("Match", back_populates="session")
+    club: Mapped[Club] = relationship("Club", back_populates="sessions")
+
+
+class Club(Base, AsDictMixin):
+    __tablename__ = "club"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(nullable=False)
+    sessions: Mapped[list[Session]] = relationship(Session, back_populates="club")
+
+
+class SessionRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+        self.db = db
+
+    def create(self, date: datetime.date) -> Session:
+        session = Session(date=date)
+        self.session.add(session)
+
+
+class PlayerRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+        self.db = db
+
+    def get(self, name: str) -> Player | None:
+        return self.session.scalars(
+            select(Player).where(Player.name == name)
+        ).one_or_none()
+
+    def get_or_create(self, name: str) -> Player:
+        player = self.get(name)
+        if player is None:
+            player = Player(name=name)
+            self.session.add(player)
+        return player
+
+
+class TeamRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+        self.db = db
+
+    def get(self, players: list[Player]) -> Team | None:
+        target_ids = [player.id for player in players]
+        num_players = len(target_ids)
+        team_subquery = (
+            select(team_member.c.team_id)
+            .group_by(team_member.c.team_id)
+            .having(
+                func.sum(case((team_member.c.player_id.in_(target_ids), 1), else_=0))
+                == num_players
+            )
+        ).subquery()
+        return self.session.scalars(
+            select(Team).join(team_subquery, Team.id == team_subquery.c.team_id)
+        ).one_or_none()
+
+    def get_or_create(self, players: list[Player]) -> Team:
+        team = self.get(players)
+        if team is None:
+            team = Team(members=players)
+            self.session.add(team)
+        return team
+
+
+class ClubRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+        self.db = db
+
+    def insert(self, name: str) -> Club:
+        self.session.execute(insert(Club), [{"name": name}])
+        return self.session.execute(select(Club).where(Club.name == name)).first()
+
+    def get(self, name: str) -> Club | None:
+        return self.session.scalars(select(Club).where(Club.name == name)).one_or_none()
+
+    def get_or_create(self, name: str) -> Club:
+        club = self.get(name)
+        if club is None:
+            club = Club(name=name)
+            self.session.add(club)
+        return club
 
 
 class Database:
+    session: DatabaseSession
+    sessions: SessionRepo
+    players: PlayerRepo
+    clubs: ClubRepo
+    teams: TeamRepo
+
     def __init__(self, path: str):
         engine = create_engine(f"sqlite:///{path}")
-        self.session = DatabaseSession(engine)
+        self.session_factory = sessionmaker(engine)
+
+    def __enter__(self) -> DatabaseSession:
+        self.session = self.session_factory()
+        self.sessions = SessionRepo(self)
+        self.clubs = ClubRepo(self)
+        self.players = PlayerRepo(self)
+        self.teams = TeamRepo(self)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.session.close()
+
+    def commit(self):
+        self.session.commit()
+
+    def rollback(self):
+        self.session.rollback()
