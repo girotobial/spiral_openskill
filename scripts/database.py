@@ -45,11 +45,15 @@ class Player(Base, AsDictMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    person_id: Mapped[int] = mapped_column(
+        ForeignKey("person.id", name="person_id_fkey"), nullable=True
+    )
 
     teams: Mapped[list[Team]] = relationship(
         secondary=team_member,
         back_populates="members",
     )
+    person: Mapped[Player] = relationship("Person", back_populates="players")
 
 
 class Result(Base):
@@ -107,6 +111,13 @@ class Club(Base, AsDictMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
     sessions: Mapped[list[Session]] = relationship(Session, back_populates="club")
+
+
+class Person(Base):
+    __tablename__ = "person"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(nullable=False)
+    players: Mapped[list[Player]] = relationship(Player, back_populates="person")
 
 
 class SessionRepo:
