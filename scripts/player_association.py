@@ -12,9 +12,9 @@ def main():
         reader = DictReader(csvfile)
         with database:
             for row in reader:
-                player_id = row["player_id"]
+                player_name = row["player_name"]
                 person_name = row["person"]
-                player = database.players.get_by_id(int(player_id))
+                player = database.players.get(player_name)
                 person = database.people.get_or_create(person_name)
                 player.person = person
             database.commit()
