@@ -82,6 +82,7 @@ def add_page_to_db(database: Database, page: Path, club: Club) -> None:
             loser_score=row.loser_score,
             margin=row.winner_score - row.loser_score,
             duration=int(row.duration.total_seconds()),
+            type_ = row.type_,
         )
         game_session.matches.append(match)
 

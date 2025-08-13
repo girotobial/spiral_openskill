@@ -1,8 +1,9 @@
-from dataclasses import dataclass
 import datetime
-from typing import TypeVar, Generic, Self
-from bs4.element import Tag
 import enum
+from dataclasses import dataclass
+from typing import Generic, Self, TypeVar
+
+from bs4.element import Tag
 
 T = TypeVar("T")
 
@@ -16,7 +17,6 @@ class SafeList(list, Generic[T]):
 
 
 def _extract_name(text: str) -> str:
-    print(text)
     return " ".join(s for s in text.strip().split(" ")).strip()
 
 

@@ -3,7 +3,11 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
-from common import MatchRow
+try:
+    from common import Type
+except ModuleNotFoundError:
+    from .common import Type
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -87,6 +91,7 @@ class Match(Base):
     loser_score: Mapped[int] = mapped_column(Integer, nullable=False)
     margin: Mapped[int] = mapped_column(Integer, nullable=False)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
+    type_: Mapped[Type] = mapped_column(name="type", default=Type.UNDEFINED, nullable=False)
 
     session: Mapped[Session] = relationship("Session", back_populates="matches")
     teams: Mapped[list[Result]] = relationship(Result, back_populates="match")
@@ -149,6 +154,11 @@ class PlayerRepo:
             select(Player).where(Player.name == name)
         ).one_or_none()
 
+    def get_by_id(self, id_: int) -> Player | None:
+        return self.session.scalars(
+            select(Player).where(Player.id == id_)
+        ).one_or_none()
+
     def get_or_create(self, name: str) -> Player:
         player = self.get(name)
         if player is None:
@@ -205,15 +215,39 @@ class ClubRepo:
         return club
 
 
+class PersonRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+
+    def get(self, name: str) -> Person | None:
+        return self.session.scalars(
+            select(Person).where(Person.name == name)
+        ).one_or_none()
+
+    def get_or_create(self, name: str) -> Person:
+        person = self.get(name)
+        if person is None:
+            person = Person(name=name)
+            self.session.add(person)
+        return person
+
+
+class ViewsRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+
+
 class Database:
     session: DatabaseSession
     sessions: SessionRepo
     players: PlayerRepo
     clubs: ClubRepo
     teams: TeamRepo
+    views: ViewsRepo
+    people: PersonRepo
 
-    def __init__(self, path: str):
-        engine = create_engine(f"sqlite:///{path}", echo=True)
+    def __init__(self, path: str, echo: bool = False):
+        engine = create_engine(f"sqlite:///{path}", echo=echo)
         self.session_factory = sessionmaker(engine)
 
     def __enter__(self) -> Database:
@@ -222,6 +256,8 @@ class Database:
         self.clubs = ClubRepo(self)
         self.players = PlayerRepo(self)
         self.teams = TeamRepo(self)
+        self.views = ViewsRepo(self)
+        self.people = PersonRepo(self)
         return self
 
     def __exit__(self, *args, **kwargs):
