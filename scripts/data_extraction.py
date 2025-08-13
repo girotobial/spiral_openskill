@@ -6,15 +6,10 @@ from typing import Iterator
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from database import (
-    Database,
-    Session,
-    Match as DbMatch,
-    Team,
-    Result,
-)
-
 from common import Match, MatchRow, Player, SafeList, Type
+from database import Club, Database
+from database import Match as DbMatch
+from database import Result, Session
 
 
 def _extract_match(row: Tag) -> Match:
@@ -70,55 +65,66 @@ def process_html_page(page: Path) -> Iterator[MatchRow]:
         yield MatchRow.from_match(m, date, i)
 
 
+def add_page_to_db(database: Database, page: Path, club: Club) -> None:
+    game_session: Session | None = None
+    for row in process_html_page(page):
+        if row.session_index == 0:
+            if database.sessions.get(date=row.date, club_id=club.id) is None:
+                print(f"Session with date={row.date} and {club.id} not found")
+                game_session = Session(date=row.date)
+                club.sessions.append(game_session)
+            else:
+                return None
+
+        match = DbMatch(
+            session_index=row.session_index,
+            winner_score=row.winner_score,
+            loser_score=row.loser_score,
+            margin=row.winner_score - row.loser_score,
+            duration=int(row.duration.total_seconds()),
+        )
+        game_session.matches.append(match)
+
+        winning_players = [
+            database.players.get_or_create(name)
+            for name in (row.winner_a, row.winner_b)
+        ]
+        winning_team = database.teams.get_or_create(winning_players)
+
+        win_result = Result(team=winning_team, winner=True, match=match)
+        database.session.add(win_result)
+
+        losing_players = [
+            database.players.get_or_create(name) for name in (row.loser_a, row.loser_b)
+        ]
+        losing_team = database.teams.get_or_create(losing_players)
+        lose_result = Result(team=losing_team, winner=False, match=match)
+        database.session.add(lose_result)
+
+    database.commit()
+
+
 def main():
     root = Path(__file__).parent.parent
     data = root / "data"
-    pages_dir = root / "ebadders_pages"
+    pages_root = root / "ebadders_pages"
+    clubs = ["spiral", "drop_shotters"]
 
     database = Database("./data.db")
 
     rows = []
     field_names = None
     with database:
-        club = database.clubs.get_or_create("Spiral")
-        for page in pages_dir.glob("*.html"):
-            game_session = None
-            for row in process_html_page(page):
-                if row.session_index == 0:
-                    game_session = Session(date=row.date)
-                    club.sessions.append(game_session)
+        for club_name in clubs:
+            pages_dir = pages_root / club_name
+            club = database.clubs.get_or_create(club_name)
+            for page in pages_dir.glob("*.html"):
+                add_page_to_db(database, page, club)
 
-                match = DbMatch(
-                    session_index=row.session_index,
-                    winner_score=row.winner_score,
-                    loser_score=row.loser_score,
-                    margin=row.winner_score - row.loser_score,
-                    duration=row.duration.total_seconds(),
-                )
-                game_session.matches.append(match)
-
-                winning_players = [
-                    database.players.get_or_create(name)
-                    for name in (row.winner_a, row.winner_b)
-                ]
-                winning_team = database.teams.get_or_create(winning_players)
-                print(winning_team.id)
-
-                win_result = Result(team=winning_team, winner=True, match=match)
-                database.session.add(win_result)
-
-                losing_players = [
-                    database.players.get_or_create(name)
-                    for name in (row.loser_a, row.loser_b)
-                ]
-                losing_team = database.teams.get_or_create(losing_players)
-                lose_result = Result(team=losing_team, winner=False, match=match)
-                database.session.add(lose_result)
-
-                if field_names is None:
-                    field_names = [field.name for field in fields(row)]
-                rows.append(asdict(row))
-            database.commit()
+                for row in process_html_page(page):
+                    if field_names is None:
+                        field_names = [field.name for field in fields(row)]
+                    rows.append(asdict(row))
 
     with open(data / "matches.csv", "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)

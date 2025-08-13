@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import datetime
+from typing import Any
+
+from common import MatchRow
 from sqlalchemy import (
     Boolean,
     Column,
@@ -8,24 +11,17 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Table,
+    UniqueConstraint,
+    case,
     create_engine,
+    func,
     insert,
     select,
-    Table,
-    func,
-    case,
 )
-from sqlalchemy.orm import (
-    sessionmaker,
-    Session as DatabaseSession,
-    Mapped,
-    mapped_column,
-)
-from sqlalchemy.orm import declarative_base, relationship
-from typing import Any
-
-from common import MatchRow
-
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Session as DatabaseSession
+from sqlalchemy.orm import declarative_base, mapped_column, relationship, sessionmaker
 
 Base = declarative_base()
 
@@ -102,6 +98,8 @@ class Session(Base):
     matches: Mapped[list[Match]] = relationship("Match", back_populates="session")
     club: Mapped[Club] = relationship("Club", back_populates="sessions")
 
+    __table_args__ = (UniqueConstraint("date", "club_id", name="unique_club_session"),)
+
 
 class Club(Base, AsDictMixin):
     __tablename__ = "club"
@@ -119,6 +117,15 @@ class SessionRepo:
     def create(self, date: datetime.date) -> Session:
         session = Session(date=date)
         self.session.add(session)
+        return session
+
+    def get(self, date: datetime.date, club_id: int) -> Session | None:
+        query = (
+            select(Session)
+            .where(Session.date == date)
+            .where(Session.club_id == club_id)
+        )
+        return self.session.scalars(query).one_or_none()
 
 
 class PlayerRepo:
@@ -174,7 +181,7 @@ class ClubRepo:
 
     def insert(self, name: str) -> Club:
         self.session.execute(insert(Club), [{"name": name}])
-        return self.session.execute(select(Club).where(Club.name == name)).first()
+        return self.session.scalars(select(Club).where(Club.name == name)).first()
 
     def get(self, name: str) -> Club | None:
         return self.session.scalars(select(Club).where(Club.name == name)).one_or_none()
@@ -195,10 +202,10 @@ class Database:
     teams: TeamRepo
 
     def __init__(self, path: str):
-        engine = create_engine(f"sqlite:///{path}")
+        engine = create_engine(f"sqlite:///{path}", echo=True)
         self.session_factory = sessionmaker(engine)
 
-    def __enter__(self) -> DatabaseSession:
+    def __enter__(self) -> Database:
         self.session = self.session_factory()
         self.sessions = SessionRepo(self)
         self.clubs = ClubRepo(self)
