@@ -4,7 +4,7 @@ import datetime
 from typing import Any
 
 try:
-    from common import Type
+    from common import Type, MatchRow
 except ModuleNotFoundError:
     from .common import Type
 
@@ -26,6 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session as DatabaseSession
 from sqlalchemy.orm import declarative_base, mapped_column, relationship, sessionmaker
+from sqlalchemy.sql import text
 
 Base = declarative_base()
 
@@ -91,7 +92,9 @@ class Match(Base):
     loser_score: Mapped[int] = mapped_column(Integer, nullable=False)
     margin: Mapped[int] = mapped_column(Integer, nullable=False)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
-    type_: Mapped[Type] = mapped_column(name="type", default=Type.UNDEFINED, nullable=False)
+    type_: Mapped[Type] = mapped_column(
+        name="type", default=Type.UNDEFINED, nullable=False
+    )
 
     session: Mapped[Session] = relationship("Session", back_populates="matches")
     teams: Mapped[list[Result]] = relationship(Result, back_populates="match")
@@ -235,6 +238,66 @@ class PersonRepo:
 class ViewsRepo:
     def __init__(self, db: Database):
         self.session = db.session
+
+    def matches(self, club_name: str | None = None) -> list[MatchRow]:
+        if club_name is None:
+            result = self.session.execute(
+                text(
+                    r"""
+                    SELECT 
+                        club_name,
+                        "date",
+                        "type",
+                        winner_a,
+                        winner_b,
+                        winner_score,
+                        loser_a,
+                        loser_b,
+                        loser_score,
+                        duration,
+                        session_index
+                    FROM match_history
+                """
+                )
+            ).all()
+        else:
+            result = self.session.execute(
+                text(
+                    r"""
+                    SELECT 
+                        club_name,
+                        "date",
+                        "type",
+                        winner_a,
+                        winner_b,
+                        winner_score,
+                        loser_a,
+                        loser_b,
+                        loser_score,
+                        duration,
+                        session_index
+                    FROM match_history
+                    WHERE club_name = :club_name
+                """
+                ),
+                {club_name: club_name},
+            ).all()
+        return [
+            MatchRow(
+                club=row[0],
+                date=row[1],
+                type_=row[2],
+                winner_a=row[3],
+                winner_b=row[4],
+                winner_score=row[5],
+                loser_a=row[6],
+                loser_b=row[7],
+                loser_score=row[8],
+                duration=row[9],
+                session_index=row[10],
+            )
+            for row in result
+        ]
 
 
 class Database:

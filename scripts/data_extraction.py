@@ -82,7 +82,7 @@ def add_page_to_db(database: Database, page: Path, club: Club) -> None:
             loser_score=row.loser_score,
             margin=row.winner_score - row.loser_score,
             duration=int(row.duration.total_seconds()),
-            type_ = row.type_,
+            type_=row.type_,
         )
         game_session.matches.append(match)
 
@@ -113,8 +113,6 @@ def main():
 
     database = Database("./data.db")
 
-    rows = []
-    field_names = None
     with database:
         for club_name in clubs:
             pages_dir = pages_root / club_name
@@ -122,15 +120,12 @@ def main():
             for page in pages_dir.glob("*.html"):
                 add_page_to_db(database, page, club)
 
-                for row in process_html_page(page):
-                    if field_names is None:
-                        field_names = [field.name for field in fields(row)]
-                    rows.append(asdict(row))
-
+    rows = database.views.matches()
+    field_names = [field.name for field in fields(rows[0])]
     with open(data / "matches.csv", "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows((asdict(row) for row in rows))
 
 
 if __name__ == "__main__":

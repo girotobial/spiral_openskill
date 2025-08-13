@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 
-import networkx as nx
 import pandas as pd
 from openskill.models import ThurstoneMostellerFull, ThurstoneMostellerFullRating
 from tqdm import tqdm
+from common import Type
 
 MIN_MU = 10
 MAX_SIGMA = 8
@@ -307,35 +307,44 @@ class Model:
         ).sort_values(by="Draw Probability", ascending=False)
 
 
+def produce_ranks(data: pd.DataFrame) -> pd.DataFrame:
+    model = Model()
+    model.update(data)
+    return model.results()
+
+
 def main():
     data_path = Path(__file__).parent.parent / "data"
     data = pd.read_csv(data_path / "matches.csv")
     data["score_diff"] = data["winner_score"] - data["loser_score"]
     data = data.sort_values(by="date", ascending=True)
-    mixed = data[data["type_"] == "Mixed"]
-    ladies = data[data["type_"] == "Ladies"]
-    mens = data[data["type_"] == "Mens"]
-    overall = data[data["type_"] != "Imbalanced Mixed"]
 
-    mixed_model = Model("mixed")
-    mens_model = Model("mens")
-    ladies_model = Model("ladies")
-    overall_model = Model("overall")
+    clubs = data["club"].unique()
 
-    mixed_model.update(mixed)
-    mens_model.update(mens)
-    ladies_model.update(ladies)
-    overall_model.update(overall)
+    for club in clubs:
+        club_data = data[data["club"] == club]
+        for type_ in Type:
+            if type_ == Type.UNDEFINED:
+                continue
+            filtered_data = club_data[club_data["type_"] == str(type_).upper()]
+            if filtered_data.shape[0] == 0:
+                continue
+            results = produce_ranks(filtered_data)
+            results.to_csv(data_path / f"{club}_{type_}.csv", index=False)
+        produce_ranks(club_data).to_csv(data_path / f"{club}_overall.csv", index=False)
 
-    overall_model.predict_draws_df().to_csv(
-        data_path / "overall_draw_predictions.csv", index=False
-    )
+    for type_ in Type:
+        if type_ == Type.UNDEFINED:
+            continue
+        filtered_data = data[data["type_"] == str(type_).upper()]
+        if filtered_data.shape[0] == 0:
+            continue
+        model = Model(f"all_{type_}")
+        model.update(filtered_data)
+        results = model.results()
+        results.to_csv(data_path / f"all_{type_}.csv", index=False)
 
-    # mens_model.predict_draws_df().to_csv(data_path / "mens_draws.csv", index=False)
-
-    for model in (mixed_model, mens_model, ladies_model, overall_model):
-        df = model.results()
-        df.to_csv(data_path / f"{model.name}_ratings.csv", index=False)
+    produce_ranks(data).to_csv(data_path / f"all_overall.csv", index=False)
 
 
 if __name__ == "__main__":

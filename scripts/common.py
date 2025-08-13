@@ -76,6 +76,7 @@ class Match:
 
 @dataclass
 class MatchRow:
+    club: str
     date: datetime.date
     type_: str
     winner_a: str
@@ -102,6 +103,7 @@ class MatchRow:
             loser_b_str = None
 
         return cls(
+            club="unknown",
             date=date,
             type_=str(value.type_),
             winner_a=value.winners[0].name,
