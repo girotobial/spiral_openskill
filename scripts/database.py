@@ -59,6 +59,20 @@ class Player(Base, AsDictMixin):
         back_populates="members",
     )
     person: Mapped[Player] = relationship("Person", back_populates="players")
+    rank_history: Mapped[list[RankHistory]] = relationship(
+        "RankHistory", back_populates="player"
+    )
+
+class RankHistory(Base):
+    __tablename__ = "rank_history"
+
+    player_id: Mapped[int] = mapped_column(ForeignKey("player.id"), primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("match.id"), primary_key=True)
+    mu: Mapped[int] = mapped_column(nullable=False)
+    sigma: Mapped[int] = mapped_column(nullable=False)
+
+    player: Mapped[Player] = relationship(Player, back_populates="rank_history")
+    match: Mapped[Match] = relationship("Match")
 
 
 class Result(Base):
