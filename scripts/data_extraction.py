@@ -120,8 +120,10 @@ def main():
             for page in pages_dir.glob("*.html"):
                 add_page_to_db(database, page, club)
 
-    rows = database.views.matches()
-    field_names = [field.name for field in fields(rows[0])]
+        database.commit()
+
+        rows = database.views.matches()
+        field_names = [field.name for field in fields(rows[0])]
     with open(data / "matches.csv", "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=field_names)
         writer.writeheader()
