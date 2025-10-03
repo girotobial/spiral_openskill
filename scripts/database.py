@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
+from typing import Any, Sequence
 
 try:
-    from common import Type, MatchRow
+    from common import MatchRow, Type
 except ModuleNotFoundError:
     from .common import Type
 
@@ -62,6 +62,7 @@ class Player(Base, AsDictMixin):
     rank_history: Mapped[list[RankHistory]] = relationship(
         "RankHistory", back_populates="player"
     )
+
 
 class RankHistory(Base):
     __tablename__ = "rank_history"
@@ -160,6 +161,28 @@ class SessionRepo:
         )
         return self.session.scalars(query).one_or_none()
 
+    def get_ordered(self, club_id: int) -> Sequence[Session]:
+        query = (
+            select(Session)
+            .where(Session.club_id == club_id)
+            .order_by(Session.date.asc())
+        )
+        return self.session.scalars(query).all()
+
+
+class MatchRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+        self.db = db
+
+    def get_ordered(self, session_id: int) -> Sequence[Match]:
+        query = (
+            select(Match)
+            .where(Match.session_id == session_id)
+            .order_by(Match.session_index.asc())
+        )
+        return self.session.scalars(query).all()
+
 
 class PlayerRepo:
     def __init__(self, db: Database):
@@ -219,7 +242,9 @@ class ClubRepo:
 
     def insert(self, name: str) -> Club:
         self.session.execute(insert(Club), [{"name": name}])
-        return self.session.scalars(select(Club).where(Club.name == name)).first()
+        club = self.session.scalars(select(Club).where(Club.name == name)).first()
+        assert club is not None
+        return club
 
     def get(self, name: str) -> Club | None:
         return self.session.scalars(select(Club).where(Club.name == name)).one_or_none()
@@ -230,6 +255,9 @@ class ClubRepo:
             club = Club(name=name)
             self.session.add(club)
         return club
+
+    def all(self) -> Sequence[Club]:
+        return self.session.scalars(select(Club)).all()
 
 
 class PersonRepo:
@@ -247,6 +275,51 @@ class PersonRepo:
             person = Person(name=name)
             self.session.add(person)
         return person
+
+
+class RankHistoryRepo:
+    def __init__(self, db: Database):
+        self.session = db.session
+
+    def get_latest(self, player_id: int) -> RankHistory | None:
+        return self.session.scalars(
+            select(RankHistory)
+            .join(Match)
+            .join(Session)
+            .where(RankHistory.player_id == player_id)
+            .order_by(
+                Session.date.desc(),
+                Match.session_index.desc(),
+            )
+        ).first()
+
+    def get_all(self, player_id: int) -> list[RankHistory]:
+        return list(
+            self.session.scalars(
+                select(RankHistory)
+                .where(RankHistory.player_id == player_id)
+                .order_by(RankHistory.match_id)
+            ).all()
+        )
+
+    def get(self, player_id: int, match_id: int) -> RankHistory | None:
+        return self.session.scalars(
+            select(RankHistory)
+            .where(RankHistory.player_id == player_id)
+            .where(RankHistory.match_id == match_id)
+        ).one_or_none()
+
+    def new(
+        self, player_id: int, match_id: int, mu: float, sigma: float
+    ) -> RankHistory:
+        existing_rank = self.get(player_id, match_id)
+        if existing_rank is not None:
+            return existing_rank
+        rank_history = RankHistory(
+            player_id=player_id, match_id=match_id, mu=mu, sigma=sigma
+        )
+        self.session.add(rank_history)
+        return rank_history
 
 
 class ViewsRepo:
@@ -322,6 +395,8 @@ class Database:
     teams: TeamRepo
     views: ViewsRepo
     people: PersonRepo
+    rank_history: RankHistoryRepo
+    matches: MatchRepo
 
     def __init__(self, path: str, echo: bool = False):
         engine = create_engine(f"sqlite:///{path}", echo=echo)
@@ -335,6 +410,8 @@ class Database:
         self.teams = TeamRepo(self)
         self.views = ViewsRepo(self)
         self.people = PersonRepo(self)
+        self.rank_history = RankHistoryRepo(self)
+        self.matches = MatchRepo(self)
         return self
 
     def __exit__(self, *args, **kwargs):
