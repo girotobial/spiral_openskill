@@ -72,6 +72,8 @@ class Match:
     winner_score: int
     loser_score: int
     duration: datetime.timedelta
+    start_time: datetime.time
+    end_time: datetime.time
 
 
 @dataclass
@@ -87,6 +89,8 @@ class MatchRow:
     loser_score: int
     duration: datetime.timedelta
     session_index: int
+    start_time: datetime.time
+    end_time: datetime.time
 
     @classmethod
     def from_match(cls, value: Match, date: datetime.date, session_idx: int) -> Self:
@@ -114,4 +118,6 @@ class MatchRow:
             loser_score=value.loser_score,
             duration=value.duration,
             session_index=session_idx,
+            start_time=value.start_time,
+            end_time=value.end_time,
         )

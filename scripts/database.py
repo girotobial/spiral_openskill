@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     Table,
+    Time,
     UniqueConstraint,
     case,
     create_engine,
@@ -107,6 +108,8 @@ class Match(Base):
     loser_score: Mapped[int] = mapped_column(Integer, nullable=False)
     margin: Mapped[int] = mapped_column(Integer, nullable=False)
     duration: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_time: Mapped[datetime.time] = mapped_column(Time)
+    end_time: Mapped[datetime.time] = mapped_column(Time)
     type_: Mapped[Type] = mapped_column(
         name="type", default=Type.UNDEFINED, nullable=False
     )
@@ -342,7 +345,9 @@ class ViewsRepo:
                         loser_b,
                         loser_score,
                         duration,
-                        session_index
+                        session_index,
+                        start_time,
+                        end_time
                     FROM match_history
                 """
                 )
@@ -362,7 +367,9 @@ class ViewsRepo:
                         loser_b,
                         loser_score,
                         duration,
-                        session_index
+                        session_index,
+                        start_time,
+                        end_time
                     FROM match_history
                     WHERE club_name = :club_name
                 """
@@ -382,6 +389,8 @@ class ViewsRepo:
                 loser_score=row[8],
                 duration=row[9],
                 session_index=row[10],
+                start_time=row[11],
+                end_time=row[12],
             )
             for row in result
         ]

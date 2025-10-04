@@ -2,6 +2,7 @@ import csv
 import datetime
 from dataclasses import asdict, fields
 from pathlib import Path
+from time import strptime
 from typing import Iterator
 
 from bs4 import BeautifulSoup
@@ -10,6 +11,16 @@ from common import Match, MatchRow, Player, SafeList, Type
 from database import Club, Database
 from database import Match as DbMatch
 from database import Result, Session
+
+
+def _extract_time(time_str: str) -> datetime.time:
+    try:
+        t = datetime.datetime.strptime(time_str, "%I:%M p.m.")
+    except ValueError:
+        t = datetime.datetime.strptime(time_str, "%I p.m.")
+    delta = datetime.timedelta(hours=12)
+    t = t + delta
+    return t.time()
 
 
 def _extract_match(row: Tag) -> Match:
@@ -34,6 +45,11 @@ def _extract_match(row: Tag) -> Match:
     score_str: str = tds[2].text.strip()
     score = [int(s) for s in score_str.split("-")]
 
+    start_time_str = tds[5].text.strip()
+    start_time = _extract_time(start_time_str)
+    end_time_str = tds[7].text.strip()
+    end_time = _extract_time(end_time_str)
+
     duration_str = tds[6].text.strip()
     (hours, minutes, seconds) = duration_str.split(":")
     duration = datetime.timedelta(
@@ -47,6 +63,8 @@ def _extract_match(row: Tag) -> Match:
         winner_score=score[0],
         loser_score=score[1],
         duration=duration,
+        start_time=start_time,
+        end_time=end_time,
     )
 
 
@@ -82,6 +100,8 @@ def add_page_to_db(database: Database, page: Path, club: Club) -> None:
             loser_score=row.loser_score,
             margin=row.winner_score - row.loser_score,
             duration=int(row.duration.total_seconds()),
+            start_time=row.start_time,
+            end_time=row.end_time,
             type_=row.type_,
         )
         game_session.matches.append(match)
