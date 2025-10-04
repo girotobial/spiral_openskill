@@ -146,6 +146,30 @@ class Person(Base):
     players: Mapped[list[Player]] = relationship(Player, back_populates="person")
 
 
+detailed_ranking_history = Table(
+    "detailed_ranking_history",
+    Base.metadata,
+    Column("person_id", Integer),
+    Column("match_id", Integer),
+    Column("date", Date),
+    Column("start_time", Time),
+    Column("winner", Boolean),
+    Column("mu", Integer),
+    Column("sigma", Integer),
+)
+
+
+class DetailedRankingHistory(Base):
+    __table__ = detailed_ranking_history
+
+    __mapper_args__ = {
+        "primary_key": [
+            detailed_ranking_history.c.person_id,
+            detailed_ranking_history.c.match_id,
+        ]
+    }
+
+
 class SessionRepo:
     def __init__(self, db: Database):
         self.session = db.session
@@ -279,6 +303,9 @@ class PersonRepo:
             self.session.add(person)
         return person
 
+    def get_all(self) -> Sequence[Person]:
+        return self.session.scalars(select(Person)).all()
+
 
 class RankHistoryRepo:
     def __init__(self, db: Database):
@@ -305,6 +332,14 @@ class RankHistoryRepo:
             ).all()
         )
 
+    def get_all_by_person(self, person_id: int) -> Sequence[RankHistory]:
+        return self.session.scalars(
+            select(RankHistory)
+            .join(Player)
+            .where(Player.person_id == person_id)
+            .order_by(RankHistory.match_id)
+        ).all()
+
     def get(self, player_id: int, match_id: int) -> RankHistory | None:
         return self.session.scalars(
             select(RankHistory)
@@ -328,6 +363,15 @@ class RankHistoryRepo:
 class ViewsRepo:
     def __init__(self, db: Database):
         self.session = db.session
+
+    def detailed_ranking_history(
+        self, player_id: int
+    ) -> Sequence[DetailedRankingHistory]:
+        return self.session.scalars(
+            select(DetailedRankingHistory).where(
+                DetailedRankingHistory.person_id == player_id
+            )
+        ).all()
 
     def matches(self, club_name: str | None = None) -> list[MatchRow]:
         if club_name is None:
