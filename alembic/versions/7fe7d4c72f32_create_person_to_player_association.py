@@ -26,6 +26,7 @@ def upgrade() -> None:
         "person",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("player", schema=None) as batch_op:
         batch_op.add_column(sa.Column("person_id", sa.Integer(), nullable=True))
