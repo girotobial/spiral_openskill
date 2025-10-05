@@ -101,10 +101,8 @@ function App() {
           <PlayerDropdown onPlayerSelect={updatePlayer} />
         <Box
           sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            width: 800,
+            width: '100%',
+            height: 400,
           }}
         >
           <LineChart
@@ -120,8 +118,6 @@ function App() {
               },
             ]}
             yAxis={[{ dataKey: "mu", min: 0, label: "Skill" }]}
-            width={800}
-            height={400}
             grid={{ vertical: true, horizontal: true }}
           />
           <Slider
@@ -130,7 +126,6 @@ function App() {
             min={FIRST_DATE.getTime()}
             max={LAST_DATE.getTime()}
             onChange={handleSliderChange}
-            sx={{ width: 600 }}
           />
         </Box>
         </Paper>
