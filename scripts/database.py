@@ -149,6 +149,7 @@ class Person(Base):
 detailed_ranking_history = Table(
     "detailed_ranking_history",
     Base.metadata,
+    Column("club_id", Integer),
     Column("person_id", Integer),
     Column("match_id", Integer),
     Column("date", Date),
@@ -304,7 +305,7 @@ class PersonRepo:
         return person
 
     def get_all(self) -> Sequence[Person]:
-        return self.session.scalars(select(Person)).all()
+        return self.session.scalars(select(Person).order_by(Person.name)).all()
 
 
 class RankHistoryRepo:
@@ -368,9 +369,9 @@ class ViewsRepo:
         self, player_id: int
     ) -> Sequence[DetailedRankingHistory]:
         return self.session.scalars(
-            select(DetailedRankingHistory).where(
-                DetailedRankingHistory.person_id == player_id
-            )
+            select(DetailedRankingHistory)
+            .where(DetailedRankingHistory.person_id == player_id)
+            .where(DetailedRankingHistory.club_id == 1)
         ).all()
 
     def matches(self, club_name: str | None = None) -> list[MatchRow]:

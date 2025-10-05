@@ -45,7 +45,7 @@ class RankHistory(BaseModel):
     history: list[RankHistoryEntry]
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="Spiral Openskill")
 
 
 @app.get("/players", response_model=list[Player])

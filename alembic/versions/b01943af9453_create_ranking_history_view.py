@@ -20,21 +20,41 @@ depends_on: Union[str, Sequence[str], None] = None
 
 VIEW_SQL = """
     CREATE VIEW IF NOT EXISTS detailed_ranking_history AS
-        SELECT p.person_id, r.match_id, s.date, m.start_time, r.winner, rh.mu, rh.sigma
-        FROM "result" r
-        INNER JOIN team t
-            ON t.id = r.team_id
-        INNER JOIN team_member tm
-            ON t.id = tm.team_id
-        INNER JOIN rank_history rh
-            ON rh.player_id = tm.player_id AND rh.match_id = r.match_id
-        INNER JOIN "match" m
-            ON m.id = r.match_id
-        INNER JOIN "session" s
-            ON m.session_id = s.id
-        INNER JOIN player p
-            ON rh.player_id = p.id
-        ORDER BY s.date, m.start_time ASC
+        WITH last_game_per_session AS (
+	SELECT s.date, p.person_id, MAX(m.session_index) AS last_match_index
+	FROM "match" m
+	INNER JOIN "session" s
+		ON s.id = m.session_id
+	INNER JOIN "result" r
+		ON r.match_id = m.id
+	INNER JOIN team t
+		ON r.team_id = t.id
+	INNER JOIN team_member tm
+		ON tm.team_id = t.id
+	INNER JOIN player p
+		ON p.id = tm.player_id
+	GROUP BY s.date, p.person_id
+)
+
+SELECT s.club_id, p.person_id, r.match_id, s.date, m.start_time, r.winner, rh.mu, rh.sigma
+FROM "result" r
+INNER JOIN team t
+	ON t.id = r.team_id
+INNER JOIN team_member tm
+	ON t.id = tm.team_id
+INNER JOIN rank_history rh
+	ON rh.player_id = tm.player_id AND rh.match_id = r.match_id
+INNER JOIN "match" m
+	ON m.id = r.match_id
+INNER JOIN "session" s
+	ON m.session_id = s.id
+INNER JOIN player p
+	ON rh.player_id = p.id
+INNER JOIN last_game_per_session lg
+	ON lg.date = s.date
+	AND lg.last_match_index = m.session_index
+	AND lg.person_id = p.person_id
+ORDER BY s.date, m.start_time ASC
 """
 
 
