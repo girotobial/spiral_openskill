@@ -15,7 +15,6 @@ export interface SkillChartProps {
   }
 }
 
-
 const FALLBACK_FIRST = new Date("2025-01-01");
 const FALLBACK_LAST = new Date("2025-12-31");
 const ONE_DAY_MS = 86_400_000;
@@ -93,9 +92,9 @@ export default function SkillChart({ data, sx }: SkillChartProps) {
             max: new Date(sliderValue[1]),
           },
         ]}
-        yAxis={[{ label: "Skill" }]}
+        yAxis={[{ label: "'Open Skill' Ability Estimate" }]}
         grid={{ vertical: true, horizontal: true }}
-        sx={{ width: "100%", height: "100%" }}
+        sx={{ width: "100%", height: "90%" }}
       />
       <Slider
         value={sliderValue}
@@ -104,7 +103,7 @@ export default function SkillChart({ data, sx }: SkillChartProps) {
         max={maxTs}
         onChange={handleSliderChange}
         step={ONE_DAY_MS}
-        sx={{ width: "86%" }}
+        sx={{ width: "86%", height: "10%" }}
         aria-label="Date Range"
         disableSwap
         disabled={tooShort}
