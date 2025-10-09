@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     Date,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -169,6 +170,22 @@ class DetailedRankingHistory(Base):
             detailed_ranking_history.c.match_id,
         ]
     }
+
+
+player_stats = Table(
+    "player_stats",
+    Base.metadata,
+    Column("person_id", Integer),
+    Column("average_points_difference", Float),
+    Column("total_matches", Integer),
+    Column("wins", Integer),
+)
+
+
+class PlayerStats(Base):
+    __table__ = player_stats
+
+    __mapper_args__ = {"primary_key": [player_stats.c.person_id]}
 
 
 class SessionRepo:
@@ -373,6 +390,11 @@ class ViewsRepo:
             .where(DetailedRankingHistory.person_id == player_id)
             .where(DetailedRankingHistory.club_id == 1)
         ).all()
+
+    def player_stats(self, player_id: int) -> PlayerStats | None:
+        return self.session.scalars(
+            select(PlayerStats).where(PlayerStats.person_id == player_id)
+        ).one_or_none()
 
     def matches(self, club_name: str | None = None) -> list[MatchRow]:
         if club_name is None:

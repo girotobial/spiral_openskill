@@ -3,7 +3,8 @@ from datetime import date, datetime, time
 from typing import Annotated, Iterator
 
 from fastapi import Depends, FastAPI, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from .database import Database
 
@@ -74,3 +75,28 @@ def get_rank_history(player_id: int, db: Db) -> RankHistory:
                 for entry in history
             ],
         )
+
+
+class PlayerStats(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel, populate_by_name=True, from_attributes=True
+    )
+    player_id: int
+    average_points_difference: float
+    total_matches: int
+    wins: int
+
+
+@app.get("/player_stats/{player_id}", response_model=PlayerStats)
+def get_player_stats(player_id: int, db: Db) -> PlayerStats | None:
+    with db:
+        row = db.views.player_stats(player_id)
+    if row is None:
+        return None
+    assert row is not None
+    return PlayerStats(
+        player_id=row.person_id,
+        average_points_difference=row.average_points_difference,
+        total_matches=row.total_matches,
+        wins=row.wins,
+    )

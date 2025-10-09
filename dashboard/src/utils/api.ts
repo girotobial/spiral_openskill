@@ -22,6 +22,13 @@ export interface RankHistory {
   history: RankHistoryEntry[];
 }
 
+export interface PlayerStats {
+  player_id: number,
+  averagePointsDifference: number,
+  totalMatches: number,
+  wins: number
+}
+
 export interface ValidationError {
   loc: Array<string | number>;
   msg: string;
@@ -82,6 +89,16 @@ export class SpiralOpenskillClient {
       throw new Error("getRankHistory: 'player_id' must be a finite number.");
     }
     return this.request<RankHistory>(`/rank_history/${encodeURIComponent(String(player_id))}`, {
+      method: "GET",
+      signal,
+    });
+  }
+
+  async getPlayerStats(player_id: number, signal?: AbortSignal): Promise<PlayerStats> {
+    if (!Number.isFinite(player_id)) {
+      throw new Error("getPlayerStats: 'player_id' must be a finite number.");
+    }
+    return this.request<PlayerStats>(`/player_stats/${encodeURIComponent(String(player_id))}`, {
       method: "GET",
       signal,
     });
