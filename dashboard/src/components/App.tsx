@@ -73,7 +73,7 @@ function App() {
           <Paper elevation={2}>
             <PlayerDropdown onPlayerSelect={updatePlayer} />
           </Paper>
-          <SkillChart data={graphData} />
+          <SkillChart data={graphData} sx={{height: "450px"}}/>
         </Paper>
       </Container>
     </>

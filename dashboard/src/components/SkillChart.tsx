@@ -9,14 +9,16 @@ export interface SkillChartProps {
     lowerBound: number;
     upperBound: number;
   }>;
-  width?: number;
-  height?: number;
+  sx?: {
+    width?: string | number;
+    height?: string | number;
+  }
 }
 
 const FIRST_DATE = new Date("2025-01-01");
 const LAST_DATE = new Date("2025-12-31");
 
-export default function SkillChart({ data, width, height }: SkillChartProps) {
+export default function SkillChart({ data, sx }: SkillChartProps) {
   const firstDate = data.length > 0 ? data[0].datetime : FIRST_DATE;
   const lastDate = data.length > 0 ? data[data.length - 1].datetime : LAST_DATE;
 
@@ -49,11 +51,11 @@ export default function SkillChart({ data, width, height }: SkillChartProps) {
   return (
     <Box
       sx={{
-        width: width || "100%",
+        width: sx?.width || "100%",
         display: "flex",
         alignItems: "center",
         flexDirection: "column",
-        height: height || "100%",
+        height: sx?.height || "100%",
       }}
     >
       <LineChart
