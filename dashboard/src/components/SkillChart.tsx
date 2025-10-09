@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Slider, Box } from "@mui/material";
 import { LineChart } from "@mui/x-charts";
 
@@ -15,38 +15,47 @@ export interface SkillChartProps {
   }
 }
 
-const FIRST_DATE = new Date("2025-01-01");
-const LAST_DATE = new Date("2025-12-31");
+
+const FALLBACK_FIRST = new Date("2025-01-01");
+const FALLBACK_LAST = new Date("2025-12-31");
+const ONE_DAY_MS = 86_400_000;
 
 export default function SkillChart({ data, sx }: SkillChartProps) {
-  const firstDate = data.length > 0 ? data[0].datetime : FIRST_DATE;
-  const lastDate = data.length > 0 ? data[data.length - 1].datetime : LAST_DATE;
+
+  const [minTs, maxTs] = useMemo(() => {
+    if (data.length === 0) {
+      return [FALLBACK_FIRST.getTime(), FALLBACK_LAST.getTime()];
+    }
+    const first = data[0].datetime.getTime();
+    const last = data[data.length - 1].datetime.getTime();
+    return [first, last];
+  }, [data]);
+
 
   const [sliderValue, setSliderValue] = useState<number[]>([
-    firstDate.getTime(),
-    lastDate.getTime(),
+    minTs, maxTs
   ]);
+
+  useEffect(() => {
+    setSliderValue(([currStart, currEnd]) => [
+      Math.max(minTs, Math.min(currStart, maxTs)),
+      Math.max(minTs, Math.min(currEnd, maxTs))
+    ]
+  );
+  },[minTs, maxTs]);
 
   const handleSliderChange = (
     _: Event,
     newValue: number | number[],
-    activeThumb: number
   ) => {
     if (!Array.isArray(newValue)) {
       return;
     }
-    if (newValue[1] - newValue[0] < 86400000) {
-      if (activeThumb === 0) {
-        const clamped = Math.min(newValue[0], LAST_DATE.getTime() - 86400000);
-        setSliderValue([clamped, clamped + 86400000]);
-      } else {
-        const clamped = Math.max(newValue[1], FIRST_DATE.getTime() + 86400000);
-        setSliderValue([clamped - 86400000, clamped]);
-      }
-    } else {
-      setSliderValue(newValue as number[]);
-    }
+    setSliderValue(newValue)
   };
+
+  const tooShort = maxTs - minTs < ONE_DAY_MS;
+
 
   return (
     <Box
@@ -55,7 +64,7 @@ export default function SkillChart({ data, sx }: SkillChartProps) {
         display: "flex",
         alignItems: "center",
         flexDirection: "column",
-        height: sx?.height || "100%",
+        height: sx?.height ?? 420
       }}
     >
       <LineChart
@@ -66,7 +75,7 @@ export default function SkillChart({ data, sx }: SkillChartProps) {
             color: "grey",
             label: "95% Lower Bound",
           },
-          { dataKey: "mu", label: "Skill", stack: "total", color: "blue" },
+          { dataKey: "mu", label: "Skill", color: "blue" },
           {
             dataKey: "upperBound",
             showMark: false,
@@ -91,10 +100,14 @@ export default function SkillChart({ data, sx }: SkillChartProps) {
       <Slider
         value={sliderValue}
         valueLabelDisplay="off"
-        min={FIRST_DATE.getTime()}
-        max={LAST_DATE.getTime()}
+        min={minTs}
+        max={maxTs}
         onChange={handleSliderChange}
+        step={ONE_DAY_MS}
         sx={{ width: "86%" }}
+        aria-label="Date Range"
+        disableSwap
+        disabled={tooShort}
       />
     </Box>
   );
