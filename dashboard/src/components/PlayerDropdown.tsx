@@ -32,7 +32,7 @@ export function PlayerDropdown({ onPlayerSelect }: PlayerDropdownProps) {
   }, []);
 
   return (
-      <FormControl sx={{ minWidth: 250, m: 1}} size="small">
+      <FormControl sx={{ width: 250, m: 1}} size="small">
         <InputLabel id="player-select-label">Select Player</InputLabel>
         <Select
           labelId="player-select-label"
