@@ -2,7 +2,6 @@ import csv
 import datetime
 from dataclasses import asdict, fields
 from pathlib import Path
-from time import strptime
 from typing import Iterator
 
 from bs4 import BeautifulSoup

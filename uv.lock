@@ -1044,42 +1044,44 @@ name = "spiral-openskill"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "alembic" },
-    { name = "beautifulsoup4" },
     { name = "fastapi", extra = ["standard"] },
     { name = "networkx" },
-    { name = "openskill" },
-    { name = "pandas" },
-    { name = "seaborn" },
     { name = "sqlalchemy" },
-    { name = "tqdm" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "alembic" },
+    { name = "beautifulsoup4" },
     { name = "black" },
     { name = "isort" },
     { name = "mypy" },
+    { name = "openskill" },
+    { name = "pandas" },
+    { name = "seaborn" },
+    { name = "tqdm" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.15.2" },
-    { name = "beautifulsoup4", specifier = ">=4.13.3" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.118.0" },
     { name = "networkx", specifier = ">=3.4.2" },
-    { name = "openskill", specifier = ">=6.0.2" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "seaborn", specifier = ">=0.13.2" },
     { name = "sqlalchemy", specifier = ">=2.0.40" },
-    { name = "tqdm", specifier = ">=4.67.1" },
+    { name = "uvicorn", extras = ["standard"] },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "alembic", specifier = ">=1.15.2" },
+    { name = "beautifulsoup4", specifier = ">=4.13.3" },
     { name = "black", specifier = ">=25.1.0" },
     { name = "isort", specifier = ">=6.0.1" },
     { name = "mypy", specifier = ">=1.15.0" },
+    { name = "openskill", specifier = ">=6.0.2" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]

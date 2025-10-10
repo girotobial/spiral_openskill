@@ -1,9 +1,10 @@
 import datetime
 import enum
 from dataclasses import dataclass
-from typing import Generic, Self, TypeVar
+from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
-from bs4.element import Tag
+if TYPE_CHECKING:
+    from bs4.element import Tag
 
 T = TypeVar("T")
 
@@ -26,7 +27,7 @@ class Player:
     ranking: float
 
     @classmethod
-    def from_span(cls, span: Tag) -> Self:
+    def from_span(cls, span: "Tag") -> Self:
         name = _extract_name(span.contents[0].text)
         ranking = float(span.contents[1].text)
         return cls(name=name, ranking=ranking)

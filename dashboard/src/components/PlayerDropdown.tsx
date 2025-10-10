@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FormControl, InputLabel, Select, MenuItem, Box } from "@mui/material";
+import { FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { SpiralOpenskillClient } from "../utils/api";
 import { type SpiralOpenskillClientOptions, type Player } from "../utils/api";
 
@@ -13,7 +13,7 @@ export function PlayerDropdown({ value, onPlayerSelect}: PlayerDropdownProps) {
 
   async function fetchPlayers(): Promise<Array<Player>> {
       const options: SpiralOpenskillClientOptions = {
-        baseUrl: "http://localhost:8000",
+        baseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000",
       };
       const client = new SpiralOpenskillClient(options);
       return client.getPeople();

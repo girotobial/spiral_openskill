@@ -26,7 +26,7 @@ import { PartnerTable } from "./PartnerTable";
 import { useSearchParams } from "react-router";
 
 const apiClient = new SpiralOpenskillClient({
-  baseUrl: "http://localhost:8000",
+  baseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000",
 });
 
 const stackSpacing = { xs: 1, sm: 2, md: 4 };

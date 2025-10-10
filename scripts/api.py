@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime, time
 from typing import Annotated, Iterator
@@ -8,7 +9,7 @@ from pydantic.alias_generators import to_camel
 
 from .database import Database
 
-DB_PATH = "sqlite:///../data.db"
+DB_PATH = os.getenv("DB_PATH", "/data/data.db")
 DB_ECHO = False
 
 
