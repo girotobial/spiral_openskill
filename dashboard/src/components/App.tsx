@@ -16,10 +16,11 @@ import {
   SpiralOpenskillClient,
   type RankHistory,
   type PlayerStats,
+  type OtherPlayerStats,
 } from "../utils/api";
 import SkillChart from "./SkillChart";
 import { Gauge } from "@mui/x-charts";
-import { DataGrid, type GridColDef, type GridRowsProp } from "@mui/x-data-grid";
+import { PartnerTable } from "./PartnerTable";
 
 const apiClient = new SpiralOpenskillClient({
   baseUrl: "http://localhost:8000",
@@ -37,6 +38,11 @@ function App() {
     totalMatches: 1,
     wins: 0,
   });
+  const [partnerStats, setPartnerStats] = useState<OtherPlayerStats>({
+    playerId: selectedPlayer,
+    clubId: 1,
+    partners: []
+  })
 
   const updatePlayer = (playerId: number) => {
     setSelectedPlayer(playerId);
@@ -60,19 +66,13 @@ function App() {
       apiClient.getPlayerStats(selectedPlayer).then((data) => {
         setPlayerStats(data);
       });
+      apiClient.getPartnerStats(selectedPlayer).then((data) => {
+        setPartnerStats(data);
+      })
     }
   }, [selectedPlayer]);
 
   const winRate = (playerStats.wins / playerStats.totalMatches) * 100;
-
-  const rows: GridRowsProp = [
-    {id: 1, name: "DataGrid", description: "The community version"}
-  ]
-
-  const columns: GridColDef[] = [
-    {field: "name", headerName: "Product Name", width: 200},
-    {field: "description", headerName: "Description", width: 300},
-  ]
 
   return (
     <>
@@ -165,7 +165,7 @@ function App() {
           </Stack>
         </Paper>
         <Stack direction = "row" spacing={2}>
-          <DataGrid rows={rows} columns={columns}></DataGrid>
+          <PartnerTable rows={partnerStats.partners} />
         </Stack>
       </Container>
     </>
