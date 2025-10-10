@@ -381,8 +381,8 @@ class RankHistoryRepo:
 
 @dataclass(frozen=True, slots=True)
 class OtherPlayerStats:
-    partner_id: int
-    partner_name: str
+    player_id: int
+    player_name: str
     wins: int
     matches: int
     win_rate: float
@@ -511,13 +511,73 @@ class ViewsRepo:
                 GROUP BY p.partner_person_id
             )
             SELECT
-                ps.partner_person_id AS partner_id,
-                per.name AS partner_name,
+                ps.partner_person_id AS player_id,
+                per.name AS player_name,
                 ps.wins_together AS wins,
                 ps.matches_together AS matches,
                 ROUND(CAST(ps.wins_together AS FLOAT) / NULLIF(ps.matches_together, 0), 3) AS win_rate
             FROM partner_stats ps
             JOIN person per ON per.id = ps.partner_person_id
+            ORDER BY matches DESC;
+        """
+        result = self.session.execute(
+            statement=text(SQL_TEXT),
+            params={"club_id": club_id, "person_id": person_id},
+        )
+        return [OtherPlayerStats(**row) for row in result.mappings().all()]
+
+    def opponent_stats(
+        self, person_id: int, club_id: int | None = None
+    ) -> list[OtherPlayerStats]:
+        SQL_TEXT = """
+            WITH target_players AS (               -- all player IDs for this person
+                SELECT id AS player_id
+                FROM player
+                WHERE person_id = :person_id
+            ),
+            club_match_ids AS (                    -- matches at the given club
+                SELECT m.id AS match_id
+                FROM match m
+                JOIN session s ON s.id = m.session_id
+                WHERE s.club_id = :club_id
+            ),
+            target_team_matches AS (               -- target’s team in those matches + result
+                SELECT DISTINCT
+                    r.match_id,
+                    r.team_id       AS target_team_id,
+                    r.winner        AS target_won
+                FROM result r
+                JOIN team_member tm   ON tm.team_id = r.team_id
+                JOIN target_players tp ON tp.player_id = tm.player_id
+                WHERE r.match_id IN (SELECT match_id FROM club_match_ids)
+            ),
+            opponents AS (                         -- players on the opposing team(s)
+                SELECT DISTINCT
+                    ttm.match_id,
+                    tm2.player_id   AS opponent_player_id,
+                    ttm.target_won
+                FROM target_team_matches ttm
+                JOIN result r2       ON r2.match_id = ttm.match_id
+                                    AND r2.team_id <> ttm.target_team_id
+                JOIN team_member tm2 ON tm2.team_id = r2.team_id
+            ),
+            opponent_stats AS (                    -- aggregate per opponent *person*
+                SELECT
+                    pl2.person_id AS opponent_person_id,
+                    COUNT(DISTINCT o.match_id) AS matches_vs,
+                    SUM(CASE WHEN o.target_won = 1 THEN 1 ELSE 0 END) AS wins_vs
+                FROM opponents o
+                JOIN player pl2 ON pl2.id = o.opponent_player_id
+                GROUP BY pl2.person_id
+            )
+            SELECT
+                os.opponent_person_id AS player_id,
+                per.name AS player_name,
+                os.wins_vs AS wins,
+                os.matches_vs AS matches,
+                ROUND(CAST(os.wins_vs AS FLOAT) / NULLIF(os.matches_vs, 0), 3) AS win_rate
+            FROM opponent_stats os
+            JOIN person per ON per.id = os.opponent_person_id
             ORDER BY matches DESC;
         """
         result = self.session.execute(

@@ -37,10 +37,16 @@ export interface OtherPlayerStatsEntry {
   winRate: number
 }
 
-export interface OtherPlayerStats {
+export interface PartnerStats {
   playerId: number,
   clubId: number,
   partners: OtherPlayerStatsEntry[]
+}
+
+export interface OpponentStats {
+  playerId: number,
+  clubId: number,
+  opponents: OtherPlayerStatsEntry[]
 }
 
 export interface ValidationError {
@@ -118,22 +124,37 @@ export class SpiralOpenskillClient {
     });
   }
 
-  async getPartnerStats(player_id: number, club_id?: number, signal?: AbortSignal): Promise<OtherPlayerStats> {
+  async getPartnerStats(player_id: number, club_id?: number, signal?: AbortSignal): Promise<PartnerStats> {
     if (!Number.isFinite(player_id)) {
       throw new Error("getPlayerStats: 'player_id' must be a finite number.");
     }
     if (club_id === undefined) {
-      return this.request<OtherPlayerStats>(`/partner_stats/${encodeURIComponent(String(player_id))}`, {
+      return this.request<PartnerStats>(`/partner_stats/${encodeURIComponent(String(player_id))}`, {
         method: "GET",
         signal
       });
     }
-      return this.request<OtherPlayerStats>(`/partner_stats/${encodeURIComponent(String(player_id))}?club_id=${encodeURIComponent(String(club_id))}`, {
+      return this.request<PartnerStats>(`/partner_stats/${encodeURIComponent(String(player_id))}?club_id=${encodeURIComponent(String(club_id))}`, {
         method: "GET",
         signal
       });
   }
 
+  async getOpponentStats(player_id: number, club_id?: number, signal?: AbortSignal): Promise<OpponentStats> {
+    if (!Number.isFinite(player_id)) {
+      throw new Error("getPlayerStats: 'player_id' must be a finite number.");
+    }
+    if (club_id === undefined) {
+      return this.request<OpponentStats>(`/opponent_stats/${encodeURIComponent(String(player_id))}`, {
+        method: "GET",
+        signal
+      });
+    }
+      return this.request<OpponentStats>(`/opponent_stats/${encodeURIComponent(String(player_id))}?club_id=${encodeURIComponent(String(club_id))}`, {
+        method: "GET",
+        signal
+      });
+  }
   // ---- internals ----
 
   private async request<T>(

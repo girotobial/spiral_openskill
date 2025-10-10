@@ -113,7 +113,7 @@ class OtherPlayerStatsEntry(BaseModel):
     win_rate: float
 
 
-class OtherPlayerStats(BaseModel):
+class PartnerStats(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel, populate_by_name=True, from_attributes=True
     )
@@ -122,17 +122,46 @@ class OtherPlayerStats(BaseModel):
     partners: list[OtherPlayerStatsEntry]
 
 
-@app.get("/partner_stats/{player_id}", response_model=OtherPlayerStats)
-def get_partner_stats(player_id: int, db: Db, club_id: int = 1) -> OtherPlayerStats:
+@app.get("/partner_stats/{player_id}", response_model=PartnerStats)
+def get_partner_stats(player_id: int, db: Db, club_id: int = 1) -> PartnerStats:
     with db:
         stats = db.views.partner_stats(player_id, club_id)
-    return OtherPlayerStats(
+    return PartnerStats(
         player_id=player_id,
         club_id=club_id,
         partners=[
             OtherPlayerStatsEntry(
-                player_id=row.partner_id,
-                player_name=row.partner_name,
+                player_id=row.player_id,
+                player_name=row.player_name,
+                wins=row.wins,
+                matches=row.matches,
+                win_rate=row.win_rate,
+            )
+            for row in stats
+        ],
+    )
+
+
+class OpponentStats(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel, populate_by_name=True, from_attributes=True
+    )
+    player_id: int
+    club_id: int
+    opponents: list[OtherPlayerStatsEntry]
+
+
+@app.get("/opponent_stats/{player_id}", response_model=OpponentStats)
+def get_opponent_stats(player_id: int, db: Db, club_id: int = 1) -> OpponentStats:
+    with db:
+        stats = db.views.opponent_stats(player_id, club_id)
+    return OpponentStats(
+        player_id=player_id,
+        club_id=club_id,
+        opponents=[
+            OtherPlayerStatsEntry(
+                player_id=row.player_id,
+                player_name=row.player_name,
                 wins=row.wins,
                 matches=row.matches,
                 win_rate=row.win_rate,
