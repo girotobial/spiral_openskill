@@ -100,3 +100,43 @@ def get_player_stats(player_id: int, db: Db) -> PlayerStats | None:
         total_matches=row.total_matches,
         wins=row.wins,
     )
+
+
+class OtherPlayerStatsEntry(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel, populate_by_name=True, from_attributes=True
+    )
+    partner_id: int
+    partner_name: str
+    wins: int
+    matches: int
+    win_rate: float
+
+
+class OtherPlayerStats(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel, populate_by_name=True, from_attributes=True
+    )
+    player_id: int
+    club_id: int
+    partners: list[OtherPlayerStatsEntry]
+
+
+@app.get("/partner_stats/{player_id}", response_model=OtherPlayerStats)
+def get_partner_stats(player_id: int, db: Db, club_id: int = 1) -> OtherPlayerStats:
+    with db:
+        stats = db.views.partner_stats(player_id, club_id)
+    return OtherPlayerStats(
+        player_id=player_id,
+        club_id=club_id,
+        partners=[
+            OtherPlayerStatsEntry(
+                partner_id=row.partner_id,
+                partner_name=row.partner_name,
+                wins=row.wins,
+                matches=row.matches,
+                win_rate=row.win_rate,
+            )
+            for row in stats
+        ],
+    )

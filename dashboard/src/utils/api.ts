@@ -29,6 +29,20 @@ export interface PlayerStats {
   wins: number
 }
 
+export interface OtherPlayerStatsEntry {
+  partnerId: number,
+  partnerName: number,
+  wins: number,
+  matches: number,
+  winRate: number
+}
+
+export interface OtherPlayerStats {
+  playerId: number,
+  clubId: number,
+  partners: OtherPlayerStatsEntry[]
+}
+
 export interface ValidationError {
   loc: Array<string | number>;
   msg: string;
@@ -102,6 +116,22 @@ export class SpiralOpenskillClient {
       method: "GET",
       signal,
     });
+  }
+
+  async getPartnerStats(player_id: number, club_id: number | undefined, signal: AbortSignal): Promise<OtherPlayerStats> {
+    if (!Number.isFinite(player_id)) {
+      throw new Error("getPlayerStats: 'player_id' must be a finite number.");
+    }
+    if (club_id === null) {
+      return this.request<OtherPlayerStats>(`player_stats/${encodeURIComponent(String(player_id))}`, {
+        method: "GET",
+        signal
+      });
+    }
+      return this.request<OtherPlayerStats>(`player_stats/${encodeURIComponent(String(player_id))}?club_id=${encodeURIComponent(String(club_id))}`, {
+        method: "GET",
+        signal
+      });
   }
 
   // ---- internals ----

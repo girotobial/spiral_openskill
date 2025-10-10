@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+from dataclasses import dataclass
 from typing import Any, Sequence
 
 try:
@@ -378,6 +379,15 @@ class RankHistoryRepo:
         return rank_history
 
 
+@dataclass(frozen=True, slots=True)
+class OtherPlayerStats:
+    partner_id: int
+    partner_name: str
+    wins: int
+    matches: int
+    win_rate: float
+
+
 class ViewsRepo:
     def __init__(self, db: Database):
         self.session = db.session
@@ -461,6 +471,60 @@ class ViewsRepo:
             )
             for row in result
         ]
+
+    def partner_stats(
+        self, person_id: int, club_id: int | None = None
+    ) -> list[OtherPlayerStats]:
+        SQL_TEXT = """
+            WITH target_players AS (
+                SELECT id AS player_id
+                FROM player
+                WHERE person_id = :person_id
+            ),
+            partners AS (
+                -- teammate(s) who shared a team with *any* of the target's player_ids
+                SELECT tm1.team_id, pl2.person_id AS partner_person_id
+                FROM team_member tm1
+                JOIN target_players tp
+                ON tp.player_id = tm1.player_id
+                JOIN team_member tm2
+                ON tm2.team_id = tm1.team_id
+                AND tm2.player_id <> tm1.player_id
+                JOIN player pl2
+                ON pl2.id = tm2.player_id
+                GROUP BY tm1.team_id, pl2.person_id
+            ),
+            club_matches AS (
+                SELECT r.team_id, r.match_id, r.winner
+                FROM result r
+                JOIN match m   ON m.id = r.match_id
+                JOIN session s ON s.id = m.session_id
+                WHERE (s.club_id = :club_id OR s.club_id IS NULL)
+            ),
+            partner_stats AS (
+                SELECT
+                    p.partner_person_id,
+                    COUNT(DISTINCT cm.match_id) AS matches_together,
+                    SUM(cm.winner) AS wins_together
+                FROM partners p
+                JOIN club_matches cm ON cm.team_id = p.team_id
+                GROUP BY p.partner_person_id
+            )
+            SELECT
+                ps.partner_person_id AS partner_id,
+                per.name AS partner_name,
+                ps.wins_together AS wins,
+                ps.matches_together AS matches,
+                ROUND(CAST(ps.wins_together AS FLOAT) / NULLIF(ps.matches_together, 0), 3) AS win_rate
+            FROM partner_stats ps
+            JOIN person per ON per.id = ps.partner_person_id
+            ORDER BY matches DESC;
+        """
+        result = self.session.execute(
+            statement=text(SQL_TEXT),
+            params={"club_id": club_id, "person_id": person_id},
+        )
+        return [OtherPlayerStats(**row) for row in result.mappings().all()]
 
 
 class Database:
