@@ -17,7 +17,8 @@ import {
   SpiralOpenskillClient,
   type RankHistory,
   type PlayerStats,
-  type OtherPlayerStats,
+  type PartnerStats,
+  type OpponentStats,
 } from "../utils/api";
 import SkillChart from "./SkillChart";
 import { Gauge } from "@mui/x-charts";
@@ -41,10 +42,15 @@ function App() {
     totalMatches: 1,
     wins: 0,
   });
-  const [partnerStats, setPartnerStats] = useState<OtherPlayerStats>({
+  const [partnerStats, setPartnerStats] = useState<PartnerStats>({
     playerId: selectedPlayer,
     clubId: 1,
     partners: [],
+  });
+  const [opponentStats, setOpponentStats] = useState<OpponentStats>({
+    playerId: selectedPlayer,
+    clubId: 1,
+    opponents: [],
   });
 
   const updatePlayer = (playerId: number) => {
@@ -71,6 +77,9 @@ function App() {
       });
       apiClient.getPartnerStats(selectedPlayer).then((data) => {
         setPartnerStats(data);
+      });
+      apiClient.getOpponentStats(selectedPlayer).then((data) => {
+        setOpponentStats(data);
       });
     }
   }, [selectedPlayer]);
@@ -178,15 +187,15 @@ function App() {
             </Stack>
           </Paper>
           <Stack
-            direction="row"
+            direction={{xs: "column", md: "row" }}
             spacing={stackSpacing}
             useFlexGap
             justifyContent="space-around"
-            alignItems="center"
+            alignItems={{xs: "stretch", md: "flex-start"}}
             divider={<Divider orientation="vertical" flexItem />}
           >
             <PartnerTable rows={partnerStats.partners} title="Partners" />
-            <PartnerTable rows={partnerStats.partners} title="Opponents" />
+            <PartnerTable rows={opponentStats.opponents} title="Opponents" />
           </Stack>
         </Stack>
       </Container>

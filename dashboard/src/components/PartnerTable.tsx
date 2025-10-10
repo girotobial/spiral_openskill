@@ -9,27 +9,38 @@ export interface PartnerTableProps {
 
 export function PartnerTable({ rows, title }: PartnerTableProps) {
   const columns: GridColDef[] = [
-    { field: "playerName", headerName: "Player", width: 200 },
+    { field: "playerName", headerName: "Player", width: 200, type: "string" },
     {
       field: "wins",
       headerName: "Wins",
-      description: "Total matches won with this player",
+      description: "Total matches selected player has won",
+      type: "number",
     },
     {
       field: "matches",
       headerName: "Matches",
-      description: "Total matches played with this player",
+      description: "Total matches played",
+      type: "number",
     },
     {
       field: "winRate",
       headerName: "Win Rate",
-      description: "% of matches played that have been won",
-      valueFormatter: (value) => `${(value * 100).toFixed(1)}%`
+      description: "% of matches played that selected player has won",
+      type: "number",
+      valueFormatter: (value) => `${(value * 100).toFixed(1)}%`,
     },
   ];
 
   return (
-    <Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        maxHeight: "800px",
+        width: { xs: "100%", md: "50%" },
+        minWidth: 0,
+      }}
+    >
       <Typography>{title}</Typography>
       <Divider
         orientation="horizontal"
