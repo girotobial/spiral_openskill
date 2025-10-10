@@ -106,8 +106,8 @@ class OtherPlayerStatsEntry(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel, populate_by_name=True, from_attributes=True
     )
-    partner_id: int
-    partner_name: str
+    player_id: int
+    player_name: str
     wins: int
     matches: int
     win_rate: float
@@ -131,8 +131,8 @@ def get_partner_stats(player_id: int, db: Db, club_id: int = 1) -> OtherPlayerSt
         club_id=club_id,
         partners=[
             OtherPlayerStatsEntry(
-                partner_id=row.partner_id,
-                partner_name=row.partner_name,
+                player_id=row.partner_id,
+                player_name=row.partner_name,
                 wins=row.wins,
                 matches=row.matches,
                 win_rate=row.win_rate,

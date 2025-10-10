@@ -118,7 +118,7 @@ export class SpiralOpenskillClient {
     });
   }
 
-  async getPartnerStats(player_id: number, club_id: number | undefined, signal: AbortSignal): Promise<OtherPlayerStats> {
+  async getPartnerStats(player_id: number, club_id?: number, signal?: AbortSignal): Promise<OtherPlayerStats> {
     if (!Number.isFinite(player_id)) {
       throw new Error("getPlayerStats: 'player_id' must be a finite number.");
     }
