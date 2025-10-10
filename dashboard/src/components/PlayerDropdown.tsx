@@ -4,11 +4,11 @@ import { SpiralOpenskillClient } from "../utils/api";
 import { type SpiralOpenskillClientOptions, type Player } from "../utils/api";
 
 interface PlayerDropdownProps {
-    onPlayerSelect?: (playerId: number) => void;
+    value: number;
+    onPlayerSelect: (playerId: number) => void;
 }
 
-export function PlayerDropdown({ onPlayerSelect }: PlayerDropdownProps) {
-  const [selectedPlayer, setSelectedPlayer] = useState<number | string>("");
+export function PlayerDropdown({ value, onPlayerSelect}: PlayerDropdownProps) {
   const [players, setPlayers] = useState<Array<Player>>([]);
 
   async function fetchPlayers(): Promise<Array<Player>> {
@@ -20,11 +20,8 @@ export function PlayerDropdown({ onPlayerSelect }: PlayerDropdownProps) {
   }
 
   const handlePlayerSelect = (playerId: number) => {
-    setSelectedPlayer(playerId);
-    if (onPlayerSelect) {
-      onPlayerSelect(playerId);
-    }
-}
+    onPlayerSelect(playerId);
+  }
 
   useEffect(() => {
     fetchPlayers().then((players) => setPlayers(players));
@@ -37,7 +34,7 @@ export function PlayerDropdown({ onPlayerSelect }: PlayerDropdownProps) {
         <Select
           labelId="player-select-label"
           id="player-select"
-          value={selectedPlayer}
+          value={value}
           label="Select Player"
           onChange={(e) => handlePlayerSelect(e.target.value as number)}
         >

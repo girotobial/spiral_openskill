@@ -23,6 +23,7 @@ import {
 import SkillChart from "./SkillChart";
 import { Gauge } from "@mui/x-charts";
 import { PartnerTable } from "./PartnerTable";
+import { useSearchParams } from "react-router";
 
 const apiClient = new SpiralOpenskillClient({
   baseUrl: "http://localhost:8000",
@@ -31,7 +32,10 @@ const apiClient = new SpiralOpenskillClient({
 const stackSpacing = { xs: 1, sm: 2, md: 4 };
 
 function App() {
-  const [selectedPlayer, setSelectedPlayer] = useState<number>(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initial = Number(searchParams.get("player") ?? 0) || 0;
+  const [selectedPlayer, setSelectedPlayer] = useState<number>(initial);
+
   const [rankHistory, setRankHistory] = useState<RankHistory>({
     player_id: selectedPlayer,
     history: [],
@@ -55,6 +59,12 @@ function App() {
 
   const updatePlayer = (playerId: number) => {
     setSelectedPlayer(playerId);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (playerId) next.set("player", String(playerId));
+      else next.delete("player")
+      return next;
+    }, {replace: true})
   };
 
   const graphData = rankHistory.history.map((entry) => {
@@ -115,9 +125,9 @@ function App() {
             <Stack direction="row" useFlexGap spacing={stackSpacing}>
               <Stack direction="column" useFlexGap spacing={stackSpacing}>
                 <Stack direction="column" useFlexGap spacing={stackSpacing}>
-                  <PlayerDropdown onPlayerSelect={updatePlayer} />
+                  <PlayerDropdown value={selectedPlayer} onPlayerSelect={updatePlayer} />
                   <Stack
-                    direction="row"
+                    direction={{xs: "column", md:"row"}}
                     spacing={stackSpacing}
                     useFlexGap
                     justifyContent="center"
