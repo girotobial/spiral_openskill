@@ -11,6 +11,7 @@ import {
   Stack,
   Card,
   CardContent,
+  Divider,
 } from "@mui/material";
 import {
   SpiralOpenskillClient,
@@ -25,6 +26,8 @@ import { PartnerTable } from "./PartnerTable";
 const apiClient = new SpiralOpenskillClient({
   baseUrl: "http://localhost:8000",
 });
+
+const stackSpacing = { xs: 1, sm: 2, md: 4 };
 
 function App() {
   const [selectedPlayer, setSelectedPlayer] = useState<number>(0);
@@ -41,8 +44,8 @@ function App() {
   const [partnerStats, setPartnerStats] = useState<OtherPlayerStats>({
     playerId: selectedPlayer,
     clubId: 1,
-    partners: []
-  })
+    partners: [],
+  });
 
   const updatePlayer = (playerId: number) => {
     setSelectedPlayer(playerId);
@@ -68,7 +71,7 @@ function App() {
       });
       apiClient.getPartnerStats(selectedPlayer).then((data) => {
         setPartnerStats(data);
-      })
+      });
     }
   }, [selectedPlayer]);
 
@@ -94,78 +97,97 @@ function App() {
         </Toolbar>
       </AppBar>
       <Container maxWidth="xl">
-        <Paper elevation={1} variant="outlined" sx={{ padding: 1, marginTop: 2, marginBottom: 2}}>
-          <Stack direction="row" useFlexGap spacing={{ xs: 1, sm: 2, md: 4 }}>
-            <Stack direction="column" useFlexGap spacing={{ xs: 1, sm: 2, md: 4 }}>
-              <Stack direction="column" useFlexGap spacing={{ xs: 1, sm: 2, md:4 }}>
-                <PlayerDropdown onPlayerSelect={updatePlayer} />
-                <Stack
-                  direction="row"
-                  spacing={{ xs: 1, sm: 2, md: 4}}
-                  useFlexGap
-                  justifyContent="center"
-                  alignItems="center"
-                >
-                  <Paper elevation={2} sx={{height: "100%"}}>
-                    <Card sx={{height: "100%"}}>
-                      <CardContent sx={{height: "100%"}}>
-                        <Stack>
-                          <Typography component="p">Total Matches</Typography>
-                          <Stack direction="column">
-                            <Typography variant="h4" component="p">
-                              {playerStats.totalMatches}
-                            </Typography>
+        <Stack spacing={2}>
+          <Paper
+            elevation={1}
+            variant="outlined"
+            sx={{ padding: 1, marginTop: 2, marginBottom: 2 }}
+          >
+            <Stack direction="row" useFlexGap spacing={stackSpacing}>
+              <Stack direction="column" useFlexGap spacing={stackSpacing}>
+                <Stack direction="column" useFlexGap spacing={stackSpacing}>
+                  <PlayerDropdown onPlayerSelect={updatePlayer} />
+                  <Stack
+                    direction="row"
+                    spacing={stackSpacing}
+                    useFlexGap
+                    justifyContent="center"
+                    alignItems="center"
+                  >
+                    <Paper elevation={2} sx={{ height: "100%" }}>
+                      <Card sx={{ height: "100%" }}>
+                        <CardContent sx={{ height: "100%" }}>
+                          <Stack>
+                            <Typography component="p">Total Matches</Typography>
+                            <Stack direction="column">
+                              <Typography variant="h4" component="p">
+                                {playerStats.totalMatches}
+                              </Typography>
+                            </Stack>
                           </Stack>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Paper>
+                        </CardContent>
+                      </Card>
+                    </Paper>
+                    <Paper elevation={2}>
+                      <Typography component="p">Win Rate</Typography>
+                      <Box>
+                        <Gauge
+                          value={winRate}
+                          startAngle={-110}
+                          endAngle={110}
+                          text={({ value }) => `${value?.toFixed(0)}%`}
+                          cornerRadius="50%"
+                          color="green"
+                        ></Gauge>
+                      </Box>
+                    </Paper>
+                    <Paper elevation={2}>
+                      <Typography component="p">
+                        Average Points Margin
+                      </Typography>
+                      <Box>
+                        <Gauge
+                          value={playerStats.averagePointsDifference}
+                          startAngle={-110}
+                          endAngle={110}
+                          valueMin={-30}
+                          valueMax={30}
+                          text={({ value }) => `${value?.toFixed(2)}`}
+                          cornerRadius="50%"
+                          sx={{
+                            "& .MuiGauge-valueArc": {
+                              fill:
+                                playerStats.averagePointsDifference < 0
+                                  ? "#d32f2f"
+                                  : "#2e7d32",
+                            },
+                            "& .MuiGauge-referenceArc": {
+                              fill: "#e0e0e0",
+                            },
+                          }}
+                        ></Gauge>
+                      </Box>
+                    </Paper>
+                  </Stack>
                   <Paper elevation={2}>
-                    <Typography component="p">Win Rate</Typography>
-                    <Box>
-                      <Gauge
-                        value={winRate}
-                        startAngle={-110}
-                        endAngle={110}
-                        text={({ value }) => `${value?.toFixed(0)}%`}
-                        cornerRadius="50%"
-                        color="green"
-                      ></Gauge>
-                    </Box>
-                  </Paper>
-                  <Paper elevation={2}>
-                    <Typography component="p">Average Points Margin</Typography>
-                    <Box>
-                      <Gauge
-                        value={playerStats.averagePointsDifference}
-                        startAngle={-110}
-                        endAngle={110}
-                        valueMin={-30}
-                        valueMax={30}
-                        text={({ value }) => `${value?.toFixed(2)}`}
-                        cornerRadius="50%"
-                        sx= {{
-                          '& .MuiGauge-valueArc': {
-                            fill: playerStats.averagePointsDifference < 0 ? '#d32f2f' :'#2e7d32'
-                          },
-                          "& .MuiGauge-referenceArc": {
-                            fill: "#e0e0e0"
-                          }
-                        }}
-                      ></Gauge>
-                    </Box>
+                    <SkillChart data={graphData} sx={{ height: "450px" }} />
                   </Paper>
                 </Stack>
-                <Paper elevation={2}>
-                  <SkillChart data={graphData} sx={{ height: "450px" }} />
-                </Paper>
               </Stack>
+              <Stack direction="column"></Stack>
             </Stack>
-            <Stack direction="column"></Stack>
+          </Paper>
+          <Stack
+            direction="row"
+            spacing={stackSpacing}
+            useFlexGap
+            justifyContent="space-around"
+            alignItems="center"
+            divider={<Divider orientation="vertical" flexItem />}
+          >
+            <PartnerTable rows={partnerStats.partners} title="Partners" />
+            <PartnerTable rows={partnerStats.partners} title="Opponents" />
           </Stack>
-        </Paper>
-        <Stack direction = "row" spacing={2}>
-          <PartnerTable rows={partnerStats.partners} />
         </Stack>
       </Container>
     </>
