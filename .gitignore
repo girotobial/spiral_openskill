@@ -12,3 +12,4 @@ data/
 ebadders_pages/
 
 *.db
+.idea/
