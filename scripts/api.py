@@ -104,12 +104,17 @@ class PlayerStats(BaseModel):
     wins: int
 
 
-@app.get("/player_stats/{player_id}", response_model=PlayerStats)
-def get_player_stats(player_id: int, db: Db) -> PlayerStats | None:
+@app.get("/player_stats/{player_id}")
+def get_player_stats(player_id: int, db: Db) -> PlayerStats:
     with db:
         row = db.views.player_stats(player_id)
     if row is None:
-        return None
+        return PlayerStats(
+            player_id=player_id,
+            average_points_difference=0,
+            total_matches=0,
+            wins=0,
+        )
     assert row is not None
     return PlayerStats(
         player_id=row.person_id,
