@@ -1,7 +1,8 @@
 services:
   api:
-    image: spiral_openskill-api
-    pull_policy: never
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
     environment:
       - DB_PATH=/data/data.db
     volumes:
@@ -11,8 +12,11 @@ services:
     restart: unless-stopped
 
   web:
-    image: spiral_openskill-web
-    pull_policy: never
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
     ports:
       - "3000:80"
     depends_on:
