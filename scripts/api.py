@@ -9,7 +9,7 @@ from pydantic.alias_generators import to_camel
 
 from .database import Database
 
-DB_PATH = os.getenv("DB_PATH", "/data/data.db")
+DB_PATH = os.getenv("DB_PATH", "data.db")
 DB_ECHO = False
 
 
@@ -61,19 +61,32 @@ def get_people(db: Db) -> list[Player]:
 def get_rank_history(player_id: int, db: Db) -> RankHistory:
     with db:
         history = db.views.detailed_ranking_history(player_id)
+        initial_date = datetime(2025, 1, 1, 0, 0, 0)
+        initial_rank = RankHistoryEntry(
+            match_id=0,
+            date=initial_date.date(),
+            start_time=initial_date.time(),
+            datetime=initial_date,
+            mu=25,
+            sigma=25 / 3,
+            winner=False,
+        )
         return RankHistory(
             player_id=player_id,
             history=[
-                RankHistoryEntry(
-                    match_id=entry.match_id,
-                    date=entry.date,
-                    start_time=entry.start_time,
-                    datetime=datetime.combine(entry.date, entry.start_time),
-                    mu=entry.mu,
-                    sigma=entry.sigma,
-                    winner=entry.winner,
-                )
-                for entry in history
+                initial_rank,
+                *(
+                    RankHistoryEntry(
+                        match_id=entry.match_id,
+                        date=entry.date,
+                        start_time=entry.start_time,
+                        datetime=datetime.combine(entry.date, entry.start_time),
+                        mu=entry.mu,
+                        sigma=entry.sigma,
+                        winner=entry.winner,
+                    )
+                    for entry in history
+                ),
             ],
         )
 
