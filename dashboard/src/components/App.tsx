@@ -1,13 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  CssBaseline,
-  AppBar,
-  Toolbar,
-  Typography,
-  Container,
-  Stack,
-  Divider,
-} from "@mui/material";
+import { Stack, Divider } from "@mui/material";
 import {
   SpiralOpenskillClient,
   type RankHistory,
@@ -64,7 +56,6 @@ function App() {
     );
   };
 
-
   useEffect(() => {
     if (selectedPlayer !== 0) {
       apiClient.getRankHistory(selectedPlayer).then((data) => {
@@ -82,48 +73,26 @@ function App() {
     }
   }, [selectedPlayer]);
 
-
   return (
-    <>
-      <CssBaseline />
-      <AppBar position="static">
-        <Toolbar>
-          {/* <IconButton
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            sx={{ mr: 2 }}
-          >
-            <Menu />
-          </IconButton> */}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Spiral Stats
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="xl">
-        <Stack spacing={2}>
-          <Gauges
-            selectedPlayer={selectedPlayer}
-            updatePlayer={updatePlayer}
-            playerStats={playerStats}
-            rankHistory={rankHistory}
-          />
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={stackSpacing}
-            useFlexGap
-            justifyContent="space-around"
-            alignItems={{ xs: "stretch", md: "flex-start" }}
-            divider={<Divider orientation="vertical" flexItem />}
-          >
-            <PartnerTable rows={partnerStats.partners} title="Partners" />
-            <PartnerTable rows={opponentStats.opponents} title="Opponents" />
-          </Stack>
-        </Stack>
-      </Container>
-    </>
+    <Stack spacing={2}>
+      <Gauges
+        selectedPlayer={selectedPlayer}
+        updatePlayer={updatePlayer}
+        playerStats={playerStats}
+        rankHistory={rankHistory}
+      />
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={stackSpacing}
+        useFlexGap
+        justifyContent="space-around"
+        alignItems={{ xs: "stretch", md: "flex-start" }}
+        divider={<Divider orientation="vertical" flexItem />}
+      >
+        <PartnerTable rows={partnerStats.partners} title="Partners" />
+        <PartnerTable rows={opponentStats.opponents} title="Opponents" />
+      </Stack>
+    </Stack>
   );
 }
 
