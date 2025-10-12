@@ -69,17 +69,17 @@ export default function SkillChart({ data, sx }: SkillChartProps) {
       <LineChart
         series={[
           {
-            dataKey: "lowerBound",
-            showMark: false,
-            color: "grey",
-            label: "95% Lower Bound",
-          },
-          { dataKey: "mu", label: "Skill", color: "blue" },
-          {
             dataKey: "upperBound",
             showMark: false,
             color: "grey",
             label: "95% Upper Bound",
+          },
+          { dataKey: "mu", label: "Skill", color: "blue" },
+          {
+            dataKey: "lowerBound",
+            showMark: false,
+            color: "grey",
+            label: "95% Lower Bound",
           },
         ]}
         dataset={data}
