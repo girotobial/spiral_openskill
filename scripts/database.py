@@ -599,7 +599,9 @@ class Database:
     matches: MatchRepo
 
     def __init__(self, path: str, echo: bool = False):
-        engine = create_engine(f"sqlite:///{path}", echo=echo)
+        db_path = f"sqlite:///{path}"
+        print(f"connecting to {db_path}")
+        engine = create_engine(db_path, echo=echo)
         self.session_factory = sessionmaker(engine)
 
     def __enter__(self) -> Database:
