@@ -3,11 +3,14 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, time
 from typing import Annotated, Iterator
 
+from dotenv import find_dotenv, load_dotenv
 from fastapi import Depends, FastAPI, Request
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from .database import Database
+
+load_dotenv(find_dotenv())
 
 DB_PATH = os.getenv("DB_PATH", "data.db")
 DB_ECHO = False
