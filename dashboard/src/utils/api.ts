@@ -23,30 +23,30 @@ export interface RankHistory {
 }
 
 export interface PlayerStats {
-  player_id: number,
-  averagePointsDifference: number,
-  totalMatches: number,
-  wins: number
+  player_id: number;
+  averagePointsDifference: number;
+  totalMatches: number;
+  wins: number;
 }
 
 export interface OtherPlayerStatsEntry {
-  partnerId: number,
-  partnerName: number,
-  wins: number,
-  matches: number,
-  winRate: number
+  partnerId: number;
+  partnerName: number;
+  wins: number;
+  matches: number;
+  winRate: number;
 }
 
 export interface PartnerStats {
-  playerId: number,
-  clubId: number,
-  partners: OtherPlayerStatsEntry[]
+  playerId: number;
+  clubId: number;
+  partners: OtherPlayerStatsEntry[];
 }
 
 export interface OpponentStats {
-  playerId: number,
-  clubId: number,
-  opponents: OtherPlayerStatsEntry[]
+  playerId: number;
+  clubId: number;
+  opponents: OtherPlayerStatsEntry[];
 }
 
 export interface ValidationError {
@@ -67,7 +67,10 @@ export class ApiError<TBody = unknown> extends Error {
   public url: string;
   public body?: TBody;
 
-  constructor(message: string, opts: { status: number; url: string; body?: TBody }) {
+  constructor(
+    message: string,
+    opts: { status: number; url: string; body?: TBody }
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = opts.status;
@@ -93,7 +96,7 @@ export class SpiralOpenskillClient {
     }
     this.baseUrl = opts.baseUrl.replace(/\/+$/, ""); // strip trailing slash
     this.defaultHeaders = {
-      "accept": "application/json",
+      accept: "application/json",
       ...opts.headers,
     };
   }
@@ -104,56 +107,92 @@ export class SpiralOpenskillClient {
   }
 
   /** GET /rank_history/{player_id} — Get Rank History */
-  async getRankHistory(player_id: number, signal?: AbortSignal): Promise<RankHistory> {
+  async getRankHistory(
+    player_id: number,
+    signal?: AbortSignal
+  ): Promise<RankHistory> {
     if (!Number.isFinite(player_id)) {
       throw new Error("getRankHistory: 'player_id' must be a finite number.");
     }
-    return this.request<RankHistory>(`/rank_history/${encodeURIComponent(String(player_id))}`, {
-      method: "GET",
-      signal,
-    });
+    return this.request<RankHistory>(
+      `/rank_history/${encodeURIComponent(String(player_id))}`,
+      {
+        method: "GET",
+        signal,
+      }
+    );
   }
 
-  async getPlayerStats(player_id: number, signal?: AbortSignal): Promise<PlayerStats> {
+  async getPlayerStats(
+    player_id: number,
+    signal?: AbortSignal
+  ): Promise<PlayerStats> {
     if (!Number.isFinite(player_id)) {
       throw new Error("getPlayerStats: 'player_id' must be a finite number.");
     }
-    return this.request<PlayerStats>(`/player_stats/${encodeURIComponent(String(player_id))}`, {
-      method: "GET",
-      signal,
-    });
+    return this.request<PlayerStats>(
+      `/player_stats/${encodeURIComponent(String(player_id))}`,
+      {
+        method: "GET",
+        signal,
+      }
+    );
   }
 
-  async getPartnerStats(player_id: number, club_id?: number, signal?: AbortSignal): Promise<PartnerStats> {
+  async getPartnerStats(
+    player_id: number,
+    club_id?: number,
+    signal?: AbortSignal
+  ): Promise<PartnerStats> {
     if (!Number.isFinite(player_id)) {
       throw new Error("getPlayerStats: 'player_id' must be a finite number.");
     }
     if (club_id === undefined) {
-      return this.request<PartnerStats>(`/partner_stats/${encodeURIComponent(String(player_id))}`, {
-        method: "GET",
-        signal
-      });
+      return this.request<PartnerStats>(
+        `/partner_stats/${encodeURIComponent(String(player_id))}`,
+        {
+          method: "GET",
+          signal,
+        }
+      );
     }
-      return this.request<PartnerStats>(`/partner_stats/${encodeURIComponent(String(player_id))}?club_id=${encodeURIComponent(String(club_id))}`, {
+    return this.request<PartnerStats>(
+      `/partner_stats/${encodeURIComponent(
+        String(player_id)
+      )}?club_id=${encodeURIComponent(String(club_id))}`,
+      {
         method: "GET",
-        signal
-      });
+        signal,
+      }
+    );
   }
 
-  async getOpponentStats(player_id: number, club_id?: number, signal?: AbortSignal): Promise<OpponentStats> {
+  async getOpponentStats(
+    player_id: number,
+    club_id?: number,
+    signal?: AbortSignal
+  ): Promise<OpponentStats> {
     if (!Number.isFinite(player_id)) {
       throw new Error("getPlayerStats: 'player_id' must be a finite number.");
     }
     if (club_id === undefined) {
-      return this.request<OpponentStats>(`/opponent_stats/${encodeURIComponent(String(player_id))}`, {
-        method: "GET",
-        signal
-      });
+      return this.request<OpponentStats>(
+        `/opponent_stats/${encodeURIComponent(String(player_id))}`,
+        {
+          method: "GET",
+          signal,
+        }
+      );
     }
-      return this.request<OpponentStats>(`/opponent_stats/${encodeURIComponent(String(player_id))}?club_id=${encodeURIComponent(String(club_id))}`, {
+    return this.request<OpponentStats>(
+      `/opponent_stats/${encodeURIComponent(
+        String(player_id)
+      )}?club_id=${encodeURIComponent(String(club_id))}`,
+      {
         method: "GET",
-        signal
-      });
+        signal,
+      }
+    );
   }
   // ---- internals ----
 
@@ -170,7 +209,10 @@ export class SpiralOpenskillClient {
     const res = await fetch(url, { ...init, headers });
 
     const isJson =
-      res.headers.get("content-type")?.toLowerCase().includes("application/json") ?? false;
+      res.headers
+        .get("content-type")
+        ?.toLowerCase()
+        .includes("application/json") ?? false;
 
     let body: any = undefined;
     try {
@@ -189,8 +231,10 @@ export class SpiralOpenskillClient {
         });
       }
       const message =
-        typeof body === "object" && body && ("message" in body || "detail" in body)
-          ? (body.message ?? body.detail ?? `HTTP ${res.status}`)
+        typeof body === "object" &&
+        body &&
+        ("message" in body || "detail" in body)
+          ? body.message ?? body.detail ?? `HTTP ${res.status}`
           : `HTTP ${res.status}`;
       throw new ApiError(message, { status: res.status, url, body });
     }
@@ -198,3 +242,7 @@ export class SpiralOpenskillClient {
     return body as T;
   }
 }
+
+export const API_CLIENT = new SpiralOpenskillClient({
+    baseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000",
+})

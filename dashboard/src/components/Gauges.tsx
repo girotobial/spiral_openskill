@@ -12,7 +12,7 @@ import { Gauge } from "@mui/x-charts";
 import type { PlayerStats, RankHistory } from "../utils/api";
 
 export interface GaugesProps {
-  selectedPlayer: number;
+  selectedPlayer: number | string;
   updatePlayer: (playerId: number) => void;
   playerStats: PlayerStats;
   rankHistory: RankHistory;
