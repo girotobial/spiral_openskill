@@ -1,0 +1,16 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "SpiralStats"
+path = "src/main.rs"
+
+[dependencies]
+backend-api = { path = "../backend-api" }
+backend-database = { path = "../backend-database" }
+tokio = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

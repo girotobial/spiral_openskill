@@ -1,0 +1,4 @@
+.sqlx
+target/
+stderr
+stdout
