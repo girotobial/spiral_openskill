@@ -1,10 +1,11 @@
 import { Stack, Box, Paper, Typography, Divider } from "@mui/material";
 import { PlayerDropdown } from "./PlayerDropdown";
 import { useState, useEffect } from "react";
-import { type Player, API_CLIENT } from "../utils/api";
+import { API_CLIENT } from "../utils/api";
 import { useSearchParams } from "react-router";
 import NormalDistChart from "./NormalDistChart";
 import type { Rank } from "../types";
+import { rating, predictDraw, predictWin } from "openskill";
 
 type PlayerId = number | string;
 type PlayerSetter = (player: PlayerId) => void;
@@ -57,7 +58,6 @@ interface TeamProps {
 }
 
 function Team({ label, playerOne, playerTwo }: TeamProps) {
-
   return (
     <Box
       sx={{
@@ -72,7 +72,7 @@ function Team({ label, playerOne, playerTwo }: TeamProps) {
       </Typography>
       <Stack
         spacing={2}
-        direction="row"
+        direction={{ xs: "column", md: "row" }}
         useFlexGap
         sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
       >
@@ -101,8 +101,8 @@ const combineRanks = (rankOne: Rank, rankTwo: Rank) => {
   return {
     mu: rankOne.mu + rankTwo.mu,
     sigma: Math.sqrt(rankOne.sigma ** 2 + rankTwo.sigma ** 2),
-  }
-}
+  };
+};
 
 function getPlayerRank(player: PlayerId, setter: (rank: Rank) => void): void {
   if (Number.isFinite(player)) {
@@ -156,12 +156,14 @@ export function Matchmaker() {
   const teamOneRank = combineRanks(playerOneRank, playerTwoRank);
   const teamTwoRank = combineRanks(playerThreeRank, playerFourRank);
 
-  const [players, setPlayers] = useState<Array<Player>>([]);
-
-  useEffect(() => {
-    API_CLIENT.getPeople().then((data) => setPlayers(data));
-    return () => {};
-  }, []);
+  const winProbability = predictWin([
+    [rating(playerOneRank), rating(playerTwoRank)],
+    [rating(playerThreeRank), rating(playerFourRank)],
+  ]);
+  const drawProbability = predictDraw([
+    [rating(playerOneRank), rating(playerTwoRank)],
+    [rating(playerThreeRank), rating(playerFourRank)],
+  ]);
 
   useEffect(() => {
     getPlayerRank(playerOne, setPlayerOneRank);
@@ -191,11 +193,11 @@ export function Matchmaker() {
           alignItems: "center",
           justifyContent: "space-around",
           mt: 2,
-          flexDirection: "column"
+          flexDirection: "column",
         }}
       >
         <Stack
-          direction="row"
+          direction={{ xs: "column", md: "row" }}
           spacing={2}
           useFlexGap
           sx={{ display: "flex", alignItems: "center" }}
@@ -230,7 +232,35 @@ export function Matchmaker() {
             }}
           />
         </Stack>
-        <NormalDistChart ranks={[teamOneRank, teamTwoRank]} height={300} x={{ min: 0 }} />
+        <Typography variant="h5" sx={{ mt: 2 }}>
+          Results
+        </Typography>
+        <Stack direction="row">
+          <Paper>
+            <Typography component="p">{`Skill difference: ${(
+              teamOneRank.mu - teamTwoRank.mu
+            ).toFixed(1)}`}</Typography>
+            <Typography component="p">
+              {`Draw probability: ${(drawProbability * 100).toFixed(1)}%`}
+            </Typography>
+            <Typography component="p">
+              {`Team 1 Win Probability: ${(winProbability[0] * 100).toFixed(
+                1
+              )}%`}
+            </Typography>
+            <Typography component="p">
+              {`Team 2 Win Probability: ${(winProbability[1] * 100).toFixed(
+                1
+              )}%`}
+            </Typography>
+          </Paper>
+          <NormalDistChart
+            ranks={[teamOneRank, teamTwoRank]}
+            height={300}
+            width={500}
+            x={{ min: 0 }}
+          />
+        </Stack>
       </Box>
     </>
   );
