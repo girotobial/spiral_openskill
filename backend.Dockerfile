@@ -17,7 +17,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app /app
+COPY --from=builder /app/scripts/common.py /app/scripts/common.py
+COPY --from=builder /app/scripts/__init__.py /app/scripts/__init__.py
+COPY --from=builder /app/scripts/database.py /app/scripts/database.py
+COPY --from=builder /app/scripts/api.py /app/scripts/api.py
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
