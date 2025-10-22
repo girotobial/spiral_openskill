@@ -12,7 +12,7 @@ pub enum DbError {
     NotFound,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Database {
     pool: SqlitePool,
 }
@@ -60,18 +60,18 @@ impl Database {
         person_id: i32,
         club_id: i32,
     ) -> Result<Vec<DetailedRankingHistoryRow>, DbError> {
-        let rows = sqlx::query_as::<_, DetailedRankingHistoryRow>(
+        let rows: Vec<DetailedRankingHistoryRow> = sqlx::query_as(
             r#"
             SELECT
-                match_id,
-                date        as "date: _",
-                start_time  as "start_time: _",
-                winner      as "winner: bool",
-                CAST(mu    AS REAL) AS "mu!: f64",
-                CAST(sigma AS REAL) AS "sigma!: f64"
+            match_id,
+            date,
+            start_time,
+            winner,
+            CAST(mu    AS REAL) AS 'mu',
+            CAST(sigma AS REAL) AS 'sigma'
             FROM detailed_ranking_history
             WHERE person_id = ?1 AND club_id = ?2
-            ORDER BY match_id ASC
+            ORDER BY date ASC;
             "#,
         )
         .bind(person_id)

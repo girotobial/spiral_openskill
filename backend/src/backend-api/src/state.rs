@@ -1,6 +1,6 @@
 use backend_database::Database;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AppState {
     pub database: Database,
 }
