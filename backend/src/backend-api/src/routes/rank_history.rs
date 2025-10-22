@@ -38,8 +38,6 @@ pub async fn get_rank_history(
             AppError::from(e)
         })?;
 
-    dbg!(&history_rows);
-
     let initial_dt = NaiveDateTime::new(
         NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
         NaiveTime::from_hms_opt(0, 0, 0).unwrap(),

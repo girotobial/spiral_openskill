@@ -91,10 +91,10 @@ impl Database {
         let row = sqlx::query_as::<_, PlayerStatsRow>(
             r#"
             SELECT
-                person_id                               as "person_id!: i32",
-                CAST(average_points_difference AS REAL) as "average_points_difference!: f64",
-                total_matches                           as "total_matches!: i32",
-                wins                                     as "wins!: i32"
+                person_id                               as "person_id",
+                CAST(average_points_difference AS REAL) as "average_points_difference",
+                total_matches                           as "total_matches",
+                wins                                     as "wins"
             FROM player_stats
             WHERE person_id = ?1
             "#,

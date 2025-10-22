@@ -1,5 +1,5 @@
 use crate::{
-    routes::{get_players, get_rank_history},
+    routes::{get_player_stats, get_players, get_rank_history},
     state::AppState,
 };
 use axum::{Router, routing::get};
@@ -27,6 +27,7 @@ impl Api<AppState> {
         let router = Router::new()
             .route("/players", get(get_players))
             .route("/rank_history/{player_id}", get(get_rank_history))
+            .route("/player_stats/{player_id}", get(get_player_stats))
             .with_state(state)
             .layer(TraceLayer::new_for_http());
 
