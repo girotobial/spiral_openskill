@@ -13,3 +13,4 @@ ebadders_pages/
 
 *.db
 .idea/
+backend/target/
