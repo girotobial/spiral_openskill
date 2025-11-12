@@ -222,6 +222,18 @@ class MatchRepo:
         self.db = db
 
     def get_ordered(self, session_id: int) -> Sequence[Match]:
+        """Get all the matches in a given session in the order that they were played
+
+        Parameters
+        ----------
+        session_id : int
+            Id of the session that the matches were played in
+
+        Returns
+        -------
+        Sequence[Match]
+            All the matches played
+        """
         query = (
             select(Match)
             .where(Match.session_id == session_id)
@@ -588,7 +600,22 @@ class ViewsRepo:
 
 
 class Database:
-    session: DatabaseSession
+    """
+    The Database connection.
+
+    A context manager that controls the querying and changing of records in the database.
+
+    Example Usage:
+    ```python
+        db = Database("__memory__", echo=False)
+        with db:
+            match_history = db.views.matches()
+            db.commit()
+    ```
+
+    """
+
+    _session: DatabaseSession
     sessions: SessionRepo
     players: PlayerRepo
     clubs: ClubRepo
@@ -599,13 +626,22 @@ class Database:
     matches: MatchRepo
 
     def __init__(self, path: str, echo: bool = False):
+        """The Database
+
+        Parameters
+        ----------
+        path : str
+            Path to the database file.
+        echo : bool, optional
+            Output any performed queries into the log, by default False
+        """
         db_path = f"sqlite:///{path}"
         print(f"connecting to {db_path}")
         engine = create_engine(db_path, echo=echo)
         self.session_factory = sessionmaker(engine)
 
     def __enter__(self) -> Database:
-        self.session = self.session_factory()
+        self._session = self.session_factory()
         self.sessions = SessionRepo(self)
         self.clubs = ClubRepo(self)
         self.players = PlayerRepo(self)
@@ -617,10 +653,18 @@ class Database:
         return self
 
     def __exit__(self, *args, **kwargs):
-        self.session.close()
+        self._session.close()
 
     def commit(self):
-        self.session.commit()
+        """Save any performed changes in the database"""
+        self._session.commit()
 
     def rollback(self):
-        self.session.rollback()
+        """
+        Undo any unsaved changes in the database.
+        """
+        self._session.rollback()
+
+    @property
+    def session(self) -> DatabaseSession:
+        return self._session
