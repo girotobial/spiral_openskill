@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import { Layout } from './layouts/Layout.tsx';
 import App from './components/App.tsx'
 import { Matchmaker } from './components/Matchmaker.tsx';
+import { Session } from "./components/Session.tsx";
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -12,6 +13,7 @@ createRoot(document.getElementById('root')!).render(
         <Route element={<Layout />}>
           <Route index element={<App/>} />
           <Route path="matchmaker" element={<Matchmaker/>} />
+          <Route path="session" element={<Session />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -14,7 +14,7 @@ import {
   Drawer,
   ListItemIcon,
 } from "@mui/material";
-import { Menu, Person, People} from "@mui/icons-material";
+import { Menu, Person, People, Scale, Add} from "@mui/icons-material";
 import { useState } from "react";
 import { Outlet, Link } from "react-router";
 
@@ -29,6 +29,11 @@ const navItems = [
     href: "/matchmaker",
     icon: <People />
   },
+  {
+    name: "Session",
+    href: "/session",
+    icon: <Add />
+  }
 ];
 
 interface ListItemLinkProps {
