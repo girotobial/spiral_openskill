@@ -95,9 +95,17 @@ def add_page_to_db(database: Database, page: Path, club: Club) -> None:
         assert game_session is not None
 
         # Check if match already exists in session.
-        last_entered_idx = max((match.session_index for match in game_session.matches)) if len(game_session.matches) > 0 else -1
-        if last_entered_idx > row.session_index:
-            print(f"Skipping club id={club.id}, date={row.date}, index={row.session_index}")
+        session_id = game_session.id
+        match_exists = database.session.query(
+            database.session.query(DbMatch)
+            .filter(DbMatch.session_id == session_id)
+            .filter(DbMatch.session_index == row.session_index)
+            .exists()
+        ).scalar()
+        if match_exists:
+            print(
+                f"Skipping club id={club.id}, date={row.date}, index={row.session_index}"
+            )
             continue
 
         match = DbMatch(
