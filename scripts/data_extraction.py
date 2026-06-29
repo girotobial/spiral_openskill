@@ -50,7 +50,7 @@ def _extract_match(row: Tag) -> Match:
     end_time = _extract_time(end_time_str)
 
     duration_str = tds[6].text.strip()
-    (hours, minutes, seconds) = duration_str.split(":")
+    hours, minutes, seconds = duration_str.split(":")
     duration = datetime.timedelta(
         hours=int(hours), minutes=int(minutes), seconds=int(seconds)
     )
@@ -86,12 +86,19 @@ def add_page_to_db(database: Database, page: Path, club: Club) -> None:
     game_session: Session | None = None
     for row in process_html_page(page):
         if row.session_index == 0:
-            if database.sessions.get(date=row.date, club_id=club.id) is None:
+            game_session = database.sessions.get(date=row.date, club_id=club.id)
+            if game_session is None:
                 print(f"Session with date={row.date} and {club.id} not found")
                 game_session = Session(date=row.date)
                 club.sessions.append(game_session)
-            else:
-                return None
+
+        assert game_session is not None
+
+        # Check if match already exists in session.
+        last_entered_idx = max((match.session_index for match in game_session.matches)) if len(game_session.matches) > 0 else -1
+        if last_entered_idx > row.session_index:
+            print(f"Skipping club id={club.id}, date={row.date}, index={row.session_index}")
+            continue
 
         match = DbMatch(
             session_index=row.session_index,
@@ -128,7 +135,7 @@ def main():
     root = Path(__file__).parent.parent
     data = root / "data"
     pages_root = root / "ebadders_pages"
-    clubs = ["spiral", "drop_shotters"]
+    clubs = ["racquetiers"]
 
     database = Database("./data.db")
 
