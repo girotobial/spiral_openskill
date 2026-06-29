@@ -98,8 +98,10 @@ def add_page_to_db(database: Database, page: Path, club: Club) -> None:
         session_id = game_session.id
         match_exists = database.session.query(
             database.session.query(DbMatch)
-            .filter(DbMatch.session_id == session_id)
-            .filter(DbMatch.session_index == row.session_index)
+            .filter(
+                DbMatch.session_id == session_id,
+                DbMatch.session_index == row.session_index,
+            )
             .exists()
         ).scalar()
         if match_exists:
